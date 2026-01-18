@@ -1,0 +1,448 @@
+/* Layout */
+.dashboard-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+}
+
+.admin-layout {
+  display: flex;
+}
+
+/* Navbar */
+.glass-nav {
+  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.12);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 230px;
+  min-height: calc(100vh - 60px);
+  background: rgba(0,0,0,0.35);
+  padding: 20px 15px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.35s ease;
+}
+
+.sidebar-item img {
+  width: 22px;
+}
+
+.sidebar-item:hover {
+  background: rgba(255,255,255,0.15);
+  transform: translateX(6px);
+}
+
+/* Sidebar Link */
+.sidebar a {
+  text-decoration: none;       /* underline বন্ধ */
+  color: #f1f1f1;              /* হালকা off-white */
+  font-weight: 500;             /* medium weight, not too thin */
+  font-size: 1rem;              /* readable size */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* modern font */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3); /* subtle depth */
+}
+
+/* Hover Effect */
+.sidebar a:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;                  /* brighter on hover */
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25); /* soft shadow glow */
+}
+
+/* Active / Selected Link */
+.sidebar a.active {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+}
+
+
+/* Content */
+.admin-content {
+  flex: 1;
+  margin-top: 0;
+  padding: 5px 20px 20px 20px;
+}
+
+/* Profile */
+.profile-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  object-fit: cover;
+}
+
+/* Icon cards */
+.menu-card {
+  background: rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 30px 10px;
+  color: #fff;
+  transition: all 0.4s ease;
+  box-shadow: 0 20px 35px rgba(0,0,0,0.35);
+}
+
+.menu-card:hover {
+  transform: translateY(-10px) scale(1.07);
+}
+
+.icon-wrapper {
+  width: 70px;
+  height: 70px;
+  margin: auto;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-wrapper img {
+  width: 38px;
+}
+
+/* Load animation */
+.fade-up {
+  animation: fadeUp 0.6s ease forwards;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ICON WRAPPER */
+.icon-wrapper {
+  width: 70px;
+  height: 70px;
+  margin: auto;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.4s ease, background 0.4s ease;
+  animation: floatIcon 3s ease-in-out infinite alternate;
+}
+
+/* ICON IMAGE */
+.icon-wrapper img {
+  width: 38px;
+  transition: transform 0.4s ease, filter 0.4s ease;
+}
+
+/* Hover Effect */
+.menu-card:hover .icon-wrapper img {
+  transform: scale(1.2) rotate(15deg);
+  filter: drop-shadow(0 0 12px rgba(255,255,255,0.7));
+}
+
+.menu-card:hover .icon-wrapper {
+  transform: scale(1.1) rotate(5deg);
+  background: rgba(255,255,255,0.4);
+}
+/* Remove underline for all menu links */
+.menu-card a {
+  text-decoration: none; /* No underline */
+  color: inherit;         /* Keep text color same as card */
+  display: block;         /* Make whole card clickable */
+}
+
+/* Optional: hover effect on link text */
+.menu-card a:hover h6 {
+  text-decoration: none;
+  color: #fff; /* or same as original */
+}
+
+
+.nav-profile {
+  position: relative;
+}
+
+.nav-profile img {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.nav-profile img:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+}
+/* navbar কে top layer এ আনা */
+.navbar {
+  position: relative;
+  z-index: 1050;
+}
+
+/* profile dropdown সব কিছুর উপরে */
+.nav-profile .dropdown-menu {
+  z-index: 9999 !important;
+}
+
+/* parent overflow সমস্যা থাকলে */
+.nav-profile {
+  position: relative;
+}
+
+
+.dropdown-menu {
+  min-width: 160px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(8px);
+}
+
+.dropdown-item:hover {
+  background: rgba(0,0,0,0.05);
+  color: #000;
+  border-radius: 8px;
+}
+
+/* Make input bigger */
+.navbar .form-control {
+  min-width: 200px;  /* adjust width as needed */
+  padding: 6px 12px; /* comfortable height */
+  border-radius: 8px 0 0 8px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+/* Button styling */
+.navbar .btn {
+  border-radius: 0 8px 8px 0;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect */
+.navbar .btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+/* Optional: focus glow */
+.navbar .form-control:focus {
+  box-shadow: 0 0 6px rgba(0,123,255,0.5);
+}
+
+
+
+/* Floating animation */
+@keyframes floatIcon {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-6px) rotate(-2deg); }
+  100% { transform: translateY(0px); }
+}
+
+.long-panel {
+  width: 100%;
+  height: 60px;
+  background: linear-gradient(135deg, #97c1ec, #eef1f5);
+  border-radius: 12px;
+  padding: 0 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* common link style */
+.panel-link {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+/* back button */
+.start-btn {
+  background-color: #ffffff;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.start-btn:hover {
+  background-color: #f1f3f5;
+  transform: translateX(-3px);
+}
+
+/* update button */
+.end-btn {
+  background-color: #0d6efd;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+.end-btn:hover {
+  background-color: #0b5ed7;
+  transform: translateX(3px);
+}
+
+/* mobile responsive */
+@media (max-width: 576px) {
+  .long-panel {
+    height: auto;
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .panel-link {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.info-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.info-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #212529;
+  margin-bottom: 16px;
+  border-left: 4px solid #0d6efd;
+  padding-left: 10px;
+}
+
+/* table style */
+.details-table {
+  margin-bottom: 0;
+}
+
+.details-table tr {
+  transition: background 0.25s ease;
+}
+
+.details-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.details-table th {
+  width: 45%;
+  font-weight: 500;
+  color: #6c757d;
+  padding: 10px 0;
+  font-size: 14px;
+}
+
+
+
+/* status badge */
+.status-badge {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background-color: #e6f4ea;
+  color: #198754;
+}
+
+.status-badge.inactive {
+  background-color: #fdecea;
+  color: #dc3545;
+}
+
+/* mobile friendly */
+@media (max-width: 576px) {
+  .info-card {
+    padding: 16px;
+  }
+
+  .details-table th,
+  .details-table td {
+    font-size: 13px;
+  }
+}
+
+/* title */
+.info-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #1f2937; /* deep slate */
+}
+
+
+
+/* hover row text stays same */
+.details-table tr:hover th,
+.details-table tr:hover td {
+  color: #0f172a;
+}
+
+/* status badge */
+.status-badge.active {
+  background-color: #e8f5ee;
+  color: #15803d;
+}
+
+.status-badge.inactive {
+  background-color: #feecec;
+  color: #b91c1c;
+}
+
+.details-table th {
+  width: 220px;           /* fixed label column */
+  text-align: left;      /* 👈 left aligned */
+  padding-right: 28px;
+  position: relative;
+
+  color: #041226;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* colon same position for all */
+.details-table th::after {
+  content: ":";
+  position: absolute;
+  right: 12px;           /* 👈 colon locked position */
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.details-table td {
+  padding-left: 14px;
+  color: #1f2937; 
+  font-weight: 500;
+}

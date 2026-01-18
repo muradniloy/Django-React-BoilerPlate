@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 import os
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,16 +38,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 3rd apps
+
+    'corsheaders',              # ✅ ADD THIS
     'rest_framework',
-    'rest_framework.authtoken',
-    'corsheaders',
-    # my apps
-    'blog'
+    'rest_framework_simplejwt',
+
+    'MyShop',
 ]
 
+
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',   # ✅ MUST BE TOP
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -55,6 +57,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+
 
 ROOT_URLCONF = 'main.urls'
 
@@ -132,19 +136,36 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 
-CORS_ORIGIN_WHITELIST = (
-    'http://localhost:3000',
-)
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-]
-CORS_URLS_REGEX = r'^/api.*'
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_URLS_REGEX = r"^/api/.*"
+
 # CORS_ORIGIN_ALLOW_ALL = True
 
-
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
 
 REST_FRAMEWORK = {
+ 
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10
+    'PAGE_SIZE': 9,
 }
+
+
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+

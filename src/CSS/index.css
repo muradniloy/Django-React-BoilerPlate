@@ -1,0 +1,196 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.SingleProduct {
+  align-items: center;
+  width: 100%;
+  height: 460px;        /* সব কার্ডে একই উচ্চতা */
+  overflow: hidden;
+}
+
+
+.SingleProduct img {
+  transition: transform 0.5s ease; 
+  width: 100%;
+  height: 200px;
+  margin-top: 3px;
+  border: None !important;
+  object-fit: cover;   /* ইমেজ কেটে হলেও সাইজ ঠিক রাখবে */
+}
+
+/* হোভার করলে ইমেজ ৯০০ ডিগ্রি ঘুরবে */
+.SingleProduct:hover img {
+  transform: rotate(9deg); /* সামান্য ঘোরানো */
+}
+.img-bounce:hover img {
+  transform: rotate(9deg); /* সামান্য ঘোরানো */
+}
+.card-bounce {
+  width: 300px;
+  margin: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.card-bounce img {
+  width: 100%;
+  height: auto;
+  /* Transition যোগ করা হয়েছে যাতে স্কেলিং মসৃণ হয় */
+  transition: transform 0.4s ease-in-out; 
+}
+
+/* হোভার করলে ইমেজটি ১.১ গুণ বড় হবে */
+.card-bounce:hover img {
+  transform: scale(1.1); 
+}
+
+.add-to-cart-btn {
+  display: inline-block; /* যাতে প্যাডিং এবং মার্জিন কাজ করে */
+  background-color: #007bff; /* প্রাইমারি নীল রঙ */
+  color: white; /* লেখার রঙ সাদা */
+  padding: 10px 15px; /* বোতামের ভেতরের জায়গা */
+  text-align: center;
+  text-decoration: none; /* নিচের আন্ডারলাইন সরান */
+  border-radius: 5px; /* হালকা গোলাকার কোণা */
+  cursor: pointer; /* মাউস পয়েন্টার হাতের মতো দেখাবে */
+  font-weight: bold;
+  transition: background-color 0.3s ease, transform 0.2s ease; /* মসৃণ অ্যানিমেশন */
+  border: none;
+  width: 100%; /* কার্ডের সম্পূর্ণ প্রস্থ জুড়ে বোতাম */
+  box-sizing: border-box; /* প্যাডিং সহ সম্পূর্ণ প্রস্থ বজায় রাখা */
+}
+
+/* হোভার করলে বাটনের রঙ এবং আকার পরিবর্তন হবে */
+.add-to-cart-btn:hover {
+  background-color: #0056b3; /* একটু গাঢ় নীল রঙ */
+  transform: scale(1.02); /* সামান্য বড় হবে (বাউন্স ইফেক্ট) */
+}
+
+.ProductDetails {
+  max-width: 600px;
+  max-height: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ProductDetails img {
+  width: 50%;
+  height: auto;
+  display: block;
+         /* Convert inline image to block element */
+  margin-left: auto;       /* Push from the left */
+  margin-right: auto; 
+  object-fit: cover; /* Ensures image fills space without stretching */
+  aspect-ratio: 1 / 1; /* Keeps all product images consistent squares */
+  border-radius: 12px; /* Soft, modern corners */
+  border: 1px solid #f0f0f0;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth zoom */
+  cursor: zoom-in;
+}
+
+/* Interaction: Subtle zoom on hover */
+.ProductDetails:hover img {
+  transform: scale(1.25);
+}
+
+.home_pagation {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 20px;
+
+}
+.profile-wrapper {
+  position: relative; /* Important */
+  display: inline-block;
+}
+
+.profile-wrapper::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background-color: #28a745; /* online green */
+  border: 2px solid #fff; /* white border */
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1); /* subtle shadow */
+  transition: all 0.25s ease;
+}
+
+/* Optional: active animation / pulse */
+.profile-wrapper.active::after {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
+
+.navbar-profile {
+  cursor: pointer;
+}
+
+.navbar-profile-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #212529;
+  white-space: nowrap;
+}
+
+.navbar-profile-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #0d6efd;
+  transition: 0.25s ease;
+}
+
+.navbar-profile:hover .navbar-profile-img {
+  transform: scale(1.08);
+}
+
+.profile-img-wrapper {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  padding: 5px;                     /* outline gap */
+  background: linear-gradient(
+    135deg,
+    #0d6efd,
+    #20c997
+  );                                /* সুন্দর gradient outline */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: contain;              /* পুরো ইমেজ দেখাবে */
+  background-color: #fff;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+}
+.no-design {
+  background-color: none;
+  text-decoration: none;
+}
