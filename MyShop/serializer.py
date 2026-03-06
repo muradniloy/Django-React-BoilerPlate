@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import *
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
+
+
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -22,7 +25,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'password', 'first_name', 'last_name', 'email')
         extra_kwargs = {"passwprd": {"write_only":True, 'required':True}}
 
-        
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
@@ -34,12 +36,25 @@ class ProfileSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        validated_data.pop('prouser', None)  # ignore if somehow passed
+        validated_data.pop('prouser', None)
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
+        # পুরোনো ডাটা নিয়ে আসা
         response = super().to_representation(instance)
-        response['prouser'] = UserSerializer(instance.prouser).data
+        
+        if instance.prouser:
+            # ১. ইউজারের বেসিক ডাটা (Username, Email ইত্যাদি)
+            user_data = UserSerializer(instance.prouser).data
+            
+            # ২. গ্রুপ ডাটা সরাসরি লেভেলে নিয়ে আসা (React এর সুবিধার জন্য)
+            # এটি নিশ্চিত করবে যে রিঅ্যাক্টে currentUser.groups কাজ করবে
+            groups = [group.name for group in instance.prouser.groups.all()]
+            
+            # ৩. রেসপন্স আপডেট করা
+            response['groups'] = groups
+            response['prouser'] = user_data
+            
         return response
 
 class CategorisSerializer(serializers.ModelSerializer):
@@ -68,26 +83,28 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = [
-            'first_name',
-            'last_name',
-            'email',
-            'phone',
-            'location',
-            'designation',
-            'about',
-            'image'
+            'first_name', 'last_name', 'email', 
+            'phone', 'location', 'designation', 'about', 'image'
         ]
 
     def update(self, instance, validated_data):
-        # Update User data
+        # ১. রিকোয়েস্ট থেকে ইউজারকে বের করা (হিস্ট্রি ট্র্যাকিংয়ের জন্য)
+        request_user = self.context.get('request').user
+
+        # ২. Update User data
         user_data = validated_data.pop('prouser', {})
         user = instance.prouser
+        
+        if user_data:
+            # ইউজার মডেলের জন্য হিস্ট্রি ইউজার সেট করা
+            user._history_user = request_user 
+            for attr, value in user_data.items():
+                setattr(user, attr, value)
+            user.save()
 
-        for attr, value in user_data.items():
-            setattr(user, attr, value)
-        user.save()
-
-        # Update Profile data
+        # ৩. Update Profile data
+        # প্রোফাইল মডেলের জন্য হিস্ট্রি ইউজার সেট করা
+        instance._history_user = request_user
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -98,15 +115,15 @@ class ReligionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Religion
         fields = ["id", "name"]
+
 class StudentPersonalListSerializer(serializers.ModelSerializer):
+    # 'religion.name' থেকে ডাটা নিয়ে 'religion_name' ফিল্ডে রাখবে
     religion_name = serializers.CharField(source='religion.name', read_only=True)
 
     class Meta:
         model = StudentPersonal
         fields = "__all__"
 
-from rest_framework import serializers
-from .models import StudentPersonal, Religion
 
 class StudentPersonalSerializer(serializers.ModelSerializer):
     religion_name = serializers.CharField(source='religion.name', read_only=True)
@@ -243,14 +260,291 @@ class StudentAddressSerializer(serializers.ModelSerializer):
                 "email": instance.student.email
             }
         return response
-    
+
+
 class EducationQualificationSerializer(serializers.ModelSerializer):
-    # board ফিল্ডটি যদি EducationBoard মডেলের সাথে যুক্ত থাকে
-    board_name = serializers.ReadOnlyField(source='board.Board_Name') 
     education_type_display = serializers.CharField(source='get_education_type_display', read_only=True)
     education_group_display = serializers.CharField(source='get_education_group_display', read_only=True)
+    board_name = serializers.CharField(source='board.Board_Name', read_only=True)
 
     class Meta:
         model = EducationQualification
         fields = '__all__'
-        # depth = 1 ব্যবহার করবেন না, এটি ড্রপডাউন ম্যাচিংয়ে সমস্যা করে
+
+class EducationBoardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EducationBoard
+        fields = ['id', 'Board_Name']
+
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    groups = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['username', 'groups', 'permissions']
+
+    def get_groups(self, obj):
+        # ইউজারের সব গ্রুপের নাম লিস্ট আকারে দেবে
+        return [group.name for group in obj.groups.all()]
+
+    def get_permissions(self, obj):
+        # ইউজারের সব পারমিশন (গ্রুপ এবং ডিরেক্ট) লিস্ট আকারে দেবে
+        return list(obj.get_all_permissions())
+
+
+class StudentAdmissionSerializer(serializers.ModelSerializer):
+    # 'student' আইডি এর বদলে পুরো অবজেক্ট পাঠাবে
+    student = StudentPersonalSerializer(read_only=True) 
+    
+    # ড্রপডাউনের নাম দেখানোর জন্য (আপনার আগের কোড অনুযায়ী)
+    Program_Name_display = serializers.ReadOnlyField(source='Program_Name.Program_Name')
+    Session_display = serializers.ReadOnlyField(source='Session.Session_Name')
+
+    class Meta:
+        model = StudentAdmission
+        fields = '__all__'
+
+
+class GlobalAuditLogSerializer(serializers.Serializer):
+    history_id = serializers.IntegerField()
+    history_date = serializers.DateTimeField()
+    history_type = serializers.CharField()
+    changed_by = serializers.SerializerMethodField()
+    model_name = serializers.SerializerMethodField()
+    changes = serializers.SerializerMethodField()
+    object_repr = serializers.SerializerMethodField()
+
+    def get_changed_by(self, obj):
+        return obj.history_user.username if obj.history_user else "System"
+
+    def get_model_name(self, obj):
+        try:
+            return obj.instance.__class__.__name__ if obj.instance else "Unknown"
+        except Exception:
+            return "Unknown"
+
+    def get_object_repr(self, obj):
+        try:
+            if obj.instance:
+                # Forces string conversion to handle Decimals or other types
+                return str(obj.instance.__str__())
+            return "N/A"
+        except (ObjectDoesNotExist, Exception):
+            return "Object No Longer Exists"
+
+    def get_changes(self, obj):
+        delta = []
+        
+        # 1. Handling Updates (Type: ~)
+        if obj.history_type == '~':
+            prev_record = obj.prev_record
+            if prev_record:
+                try:
+                    diff = obj.diff_against(prev_record)
+                    for change in diff.changes:
+                        delta.append({
+                            'field': change.field,
+                            'old': str(change.old),
+                            'new': str(change.new)
+                        })
+                except Exception:
+                    pass
+        
+        # 2. Handling New Entries (Type: +)
+        elif obj.history_type == '+':
+            for field in obj.instance._meta.fields:
+                field_name = field.name
+                try:
+                    # Using getattr safely to prevent DoesNotExist crash
+                    value = getattr(obj, field_name, None)
+                    if value is not None:
+                        delta.append({
+                            'field': field_name,
+                            'old': "None (New Entry)",
+                            'new': str(value)
+                        })
+                except (ObjectDoesNotExist, Exception):
+                    delta.append({
+                        'field': field_name,
+                        'old': "None (New Entry)",
+                        'new': "Related Object Deleted"
+                    })
+                    
+        # 3. Handling Deletions (Type: -)
+        elif obj.history_type == '-':
+            for field in obj.instance._meta.fields:
+                field_name = field.name
+                try:
+                    value = getattr(obj, field_name, None)
+                    if value is not None:
+                        delta.append({
+                            'field': field_name,
+                            'old': str(value),
+                            'new': "Deleted"
+                        })
+                except (ObjectDoesNotExist, Exception):
+                    delta.append({
+                        'field': field_name,
+                        'old': "Related Object Deleted",
+                        'new': "Deleted"
+                    })
+                    
+        return delta
+class ProgramSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Program
+        fields = '__all__'
+
+class SessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Session
+        fields = '__all__'
+
+
+class MainHeadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MainHead
+        fields = '__all__'
+
+class PaymentHeadSerializer(serializers.ModelSerializer):
+    # ডিসপ্লে করার জন্য নাম
+    category_name = serializers.ReadOnlyField(source='payment_category.main_head_name')
+    
+    # এটি রিড-রাইট উভয় সাপোর্ট করবে যাতে সেভ করার সময় সমস্যা না হয়
+    # MainHead হলো আপনার ফরেন কি মডেলের নাম
+    payment_category = serializers.PrimaryKeyRelatedField(
+        queryset=MainHead.objects.all(), 
+        required=False, 
+        allow_null=True
+    )
+
+    class Meta:
+        model = PaymentHead
+        # 'headType' এবং 'opening_date' ফিল্ডগুলো অবশ্যই যোগ করতে হবে
+        fields = [
+            'id', 
+            'head_code', 
+            'head_name', 
+            'opening_date', 
+            'payment_category', 
+            'category_name', 
+            'headType'
+        ]
+        
+class FeeRateSerializer(serializers.ModelSerializer):
+    # ক্যাটাগরির আইডিটি ফ্রন্টএন্ডে পাঠানোর জন্য এটি যোগ করুন
+    category_id = serializers.ReadOnlyField(source='payment_head.payment_category.id')
+    
+    category_name = serializers.ReadOnlyField(source='payment_head.payment_category.main_head_name')
+    category_code = serializers.ReadOnlyField(source='payment_head.payment_category.main_head_code')
+
+    head_code = serializers.ReadOnlyField(source='payment_head.head_code')
+    head_name = serializers.ReadOnlyField(source='payment_head.head_name')
+
+    class Meta:
+        model = FeeRate
+        fields = '__all__' # এখানে category_id অটোমেটিক ইনক্লুড হয়ে যাবে
+
+
+class PaymentContactSerializer(serializers.ModelSerializer):
+    # স্টুডেন্ট ইনফো
+    photo = serializers.ImageField(source='student.photo', read_only=True)
+    student_name = serializers.ReadOnlyField(source='student.first_name')
+    
+    # ফি ইনফো
+    fee_head_name = serializers.ReadOnlyField(source='fees.payment_head.head_name')
+    # আপনার মডেল অনুযায়ী পাথটি নিশ্চিত করুন (fees -> payment_head -> payment_category -> main_head_name)
+    category_name = serializers.ReadOnlyField(source='fees.payment_head.payment_category.main_head_name') 
+    original_amount = serializers.ReadOnlyField(source='fees.amount')
+    
+    # চয়েস ফিল্ডের ডিসপ্লে ভ্যালু
+    paymentType_display = serializers.CharField(source='get_paymentType_display', read_only=True)
+    discount_type_display = serializers.CharField(source='get_discount_type_display', read_only=True)
+
+    class Meta:
+        model = PaymentContact
+        fields = [
+            'id', 
+            'student', 
+            'student_name', 
+            'photo', 
+            'fees', 
+            'fee_head_name', 
+            'category_name', 
+            'contact_date', 
+            'paymentType', 
+            'paymentType_display', 
+            'discount_type', 
+            'discount_type_display', 
+            'discount_value', 
+            'quantity',  # <--- এই ফিল্ডটি যোগ করা হলো
+            'amount', 
+            'original_amount'
+        ]
+
+class StudentPaymentSerializer(serializers.ModelSerializer):
+    # স্টুডেন্টের পুরো নাম পাঠানোর জন্য SerializerMethodField ব্যবহার করা ভালো
+    student_full_name = serializers.SerializerMethodField()
+    student_id_no = serializers.SerializerMethodField()
+    student_photo = serializers.SerializerMethodField()
+    head_name = serializers.ReadOnlyField(source='fees.payment_head.head_name', default="General Fee")
+
+    class Meta:
+        model = StudentPayment
+        fields = '__all__'
+
+    def get_student_full_name(self, obj):
+        if obj.student:
+            # first_name এবং last_name যোগ করে পাঠানো হচ্ছে
+            return f"{obj.student.first_name}"
+        return "Unknown Student"
+
+    def get_student_id_no(self, obj):
+        if obj.student:
+            # admission টেবিল থেকে আইডি নিয়ে আসা
+            admission = obj.student.studentadmission_set.first()
+            if admission and admission.student_id_no:
+                return admission.student_id_no
+        return "N/A"
+
+    def get_student_photo(self, obj):
+        if obj.student and obj.student.photo:
+            try:
+                return obj.student.photo.url
+            except:
+                return None
+        return None
+class StudentSearchSerializer(serializers.ModelSerializer):
+    label = serializers.SerializerMethodField()
+    value = serializers.IntegerField(source='id')
+    student_id_no = serializers.SerializerMethodField()
+    program = serializers.SerializerMethodField()
+    mobile = serializers.CharField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+
+    class Meta:
+        model = StudentPersonal
+        fields = ['value', 'label', 'photo', 'student_id_no', 'program', 'mobile', 'first_name', 'last_name']
+
+    def get_student_admission(self, obj):
+        return obj.studentadmission_set.first()
+
+    def get_student_id_no(self, obj):
+        admission = self.get_student_admission(obj)
+        return admission.student_id_no if admission and admission.student_id_no else "N/A"
+
+    def get_program(self, obj):
+        admission = self.get_student_admission(obj)
+        if admission and admission.Program_Name:
+            # আপনার এরর অনুযায়ী এখানে admission.Program_Name.Program_Name হতে পারে
+            # অথবা সবচেয়ে সেফ হলো str(admission.Program_Name)
+            return str(admission.Program_Name) 
+        return "Not Enrolled"
+
+    def get_label(self, obj):
+        std_id = self.get_student_id_no(obj)
+        return f"{obj.first_name} - {std_id} ({obj.mobile})"

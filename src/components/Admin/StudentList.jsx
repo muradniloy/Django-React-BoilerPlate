@@ -16,91 +16,90 @@ const StudentList = () => {
   }, []);
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow-lg">
-        <div className="card-header bg-primary text-white">
-          <h5 className="mb-0">🎓 Student List</h5>
-        </div>
+   <div className="container mt-4">
+  {/* Header Section with Title and Add Button */}
+  <div className="d-flex justify-content-between align-items-center mb-3">
+    <h4 className="fw-bold text-light mb-0">🎓 Student Management</h4>
+    <Link to="/create_student" className="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+      <i className="bi bi-plus-circle"></i> Add New Student
+    </Link>
+  </div>
 
-        <div className="card-body p-0">
-          <table className="table table-hover align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>#</th>
-                <th>Photo</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Mobile</th>
-                <th>Gender</th>
-                <th>Religion</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
+  {/* Table Card */}
+  <div className="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div className="card-header bg-primary text-white py-3">
+      <h5 className="mb-0 small fw-bold text-uppercase">Student List</h5>
+    </div>
 
-            <tbody>
-              {students.length > 0 ? (
-                students.map((s, index) => (
-                  <tr key={s.id}>
-                    <td>{index + 1}</td>
+    <div className="card-body p-0">
+      <div className="table-responsive">
+        <table className="table table-hover align-middle mb-0">
+          <thead className="bg-light">
+            <tr>
+              <th className="border-0 ps-3">#</th>
+              <th className="border-0">Photo</th>
+              <th className="border-0">Name</th>
+              <th className="border-0">Email</th>
+              <th className="border-0">Mobile</th>
+              <th className="border-0">Gender</th>
+              <th className="border-0">Religion</th>
+              <th className="border-0">Status</th>
+              <th className="border-0 pe-3 text-center">Action</th>
+            </tr>
+          </thead>
 
-                    <td>
-                      <img
-                        src={s.photo ? `${domain}${s.photo}` : "/default.png"}
-                        alt="student"
-                        className="rounded-circle"
-                        style={{
-                          width: "45px",
-                          height: "45px",
-                          objectFit: "cover",
-                        }}
-                      />
-                    </td>
-
-                    <td>{s.first_name} {s.last_name}</td>
-                    <td>{s.email}</td>
-                    <td>{s.mobile || "-"}</td>
-                    <td>
-                      {s.gender === "m"
-                        ? "Male"
-                        : s.gender === "f"
-                        ? "Female"
-                        : "Others"}
-                    </td>
-                    <td>{s.religion_name || "-"}</td>
-
-                    <td>
-                      <span
-                        className={`badge ${
-                          s.active ? "bg-success" : "bg-danger"
-                        }`}
-                      >
-                        {s.active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-
-                    <td>
-                      <Link
-                        to={`/StudentPage/${s.id}`}
-                        className="btn btn-sm btn-outline-primary"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="9" className="text-center py-4">
-                    No students found
+          <tbody className="border-top-0">
+            {students.length > 0 ? (
+              students.map((s, index) => (
+                <tr key={s.id}>
+                  <td className="ps-3">{index + 1}</td>
+                  <td>
+                    <img
+                      src={s.photo ? `${domain}${s.photo}` : "/default.png"}
+                      alt="student"
+                      className="rounded-circle border"
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        objectFit: "cover",
+                      }}
+                    />
+                  </td>
+                  <td className="fw-bold text-dark">{s.first_name} {s.last_name}</td>
+                  <td className="text-muted small">{s.email}</td>
+                  <td>{s.mobile || "-"}</td>
+                  <td>
+                    {s.gender === "m" ? "Male" : s.gender === "f" ? "Female" : "Others"}
+                  </td>
+                  <td>{s.religion_name || "-"}</td>
+                  <td>
+                    <span className={`badge rounded-pill ${s.active ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger"}`} style={{fontSize: '0.75rem'}}>
+                      {s.active ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td className="pe-3 text-center">
+                    <Link
+                      to={`/StudentPage/${s.id}`}
+                      className="btn btn-sm btn-outline-primary rounded-pill px-3"
+                    >
+                      View
+                    </Link>
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="9" className="text-center py-5 text-muted">
+                  No students found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
+  </div>
+</div>
   );
 };
 

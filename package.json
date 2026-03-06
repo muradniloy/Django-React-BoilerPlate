@@ -7,12 +7,16 @@
     "@testing-library/react": "^11.2.2",
     "@testing-library/user-event": "^12.5.0",
     "axios": "^0.21.0",
+    "html2canvas": "^1.4.1",
     "js-cookie": "^2.2.1",
+    "jspdf": "^4.2.0",
+    "qrcode.react": "^4.2.0",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "react-router-dom": "^6.30.2",
     "react-scripts": "^5.0.1",
-    "sweetalert2": "^11.26.17",
+    "react-select": "^5.10.2",
+    "sweetalert2": "^11.26.20",
     "web-vitals": "^0.2.4"
   },
   "scripts": {

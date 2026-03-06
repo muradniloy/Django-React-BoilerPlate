@@ -1,8 +1,12 @@
 // import Cookies from 'js-cookie';
 
+const localIP = "192.168.100.150"; 
 
+// এটি অটোমেটিক চেক করবে আপনি কি লোকালহোস্ট নাকি আইপি দিয়ে ব্রাউজ করছেন
+export const domain = window.location.hostname === "localhost" 
+    ? "http://localhost:8000" 
+    : `http://${window.location.hostname}:8000`;
 
-export const domain = "http://127.0.0.1:8000";
 export const userToken =  window.localStorage.getItem("token");
 export const header = {
     Authorization: `token ${userToken}`

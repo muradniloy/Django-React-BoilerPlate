@@ -1,0 +1,122 @@
+/* Container and Layout */
+.student-list-wrapper {
+    padding: 1rem;
+    background-color: #f4f7fa;
+    min-height: 100vh;
+}
+
+/* Filter Styling */
+.filter-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 15px;
+}
+
+.filter-input {
+    height: 34px;
+    border-radius: 6px !important;
+    border: 1px solid #dee2e6;
+    font-size: 13px;
+}
+
+/* Table Design */
+.student-table-container {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.modern-table {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: separate;
+}
+
+.modern-table thead th {
+    background-color: #f8f9fa;
+    color: #555;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 10px 15px;
+    border-bottom: 2px solid #edf2f7;
+    text-transform: uppercase;
+}
+
+.modern-table tbody td {
+    padding: 6px 15px; /* Compact Row Height */
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f4f8;
+}
+
+/* Row Backgrounds */
+.row-approved { background-color: #f1fdf4 !important; }
+.row-pending { background-color: #fffaf0 !important; }
+.row-selected { background-color: #eef6ff !important; border-left: 4px solid #0d6efd; }
+
+/* Photo Avatar */
+.student-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.student-avatar:hover { transform: scale(1.1); }
+
+.avatar-placeholder {
+    width: 36px;
+    height: 36px;
+    background: #0d6efd;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 3px 10px;
+    border-radius: 50px;
+    font-size: 10px;
+    font-weight: 700;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
+}
+
+.status-badge.active { background: #d1e7dd; color: #0f5132; }
+.status-badge.inactive { background: #f8d7da; color: #842029; }
+
+/* Pagination */
+.pagi-link {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+}
+
+.page-number {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.page-number.active { background: #0d6efd; color: #fff; }
+
+.extra-small-text { font-size: 10.5px; line-height: 1.2; }

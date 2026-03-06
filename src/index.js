@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './CSS/index.css';
+import './CSS/nchome.css';
 import App from './App';
 import {Globalstate}  from './state/provider';
 import reducer, { initialstate } from './state/reducer';

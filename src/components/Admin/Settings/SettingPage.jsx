@@ -3,14 +3,13 @@ import "../../../CSS/dashboard.css";
 import { Link } from "react-router-dom";
 
 const sideMenus = [
-  { title: "Division List", icon: "/icons/dashboard.png", link:'/dashboard/divisions'},
-  { title: "District List", icon: "/icons/users.png", link:'/dashboard/districts'},
-  { title: "Upazilla List", icon: "/icons/users.png", link:'/dashboard/upazillas'},
-  { title: "Users", icon: "/icons/users.png" },
+  { title: "Users", icon: "/icons/users.png",  },
   { title: "Products", icon: "/icons/product.png" },
   { title: "Orders", icon: "/icons/order.png" },
-  { title: "Reports", icon: "/icons/reports.png" },
-  { title: "Settings", icon: "/icons/settings.png" },
+  { title: "Accounting Setting", icon: "/icons/reports.png", link:'/Accouting/Settings'},
+  { title: "Address Setting", icon: "/icons/address_setting.png", link:'/Address/Settings'},
+  { title: "Program Setting", icon: "/icons/product.png", link:'/Program/Settings'},
+  { title: "Logs", icon: "/icons/audit.png", link: '/dashboard/logs' },
 ];
 
 export default function SettingPage() {

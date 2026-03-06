@@ -295,3 +295,15 @@
   .uppercase {
     text-transform: uppercase;
   }
+
+.hover-red:hover {
+  background-color: #ff4d4f !important;
+  color: white !important;
+}
+
+.action-btn-hover.active {
+    background-color: #0d6efd !important; /* Bootstrap primary color */
+    color: white !important;
+    border-color: #0d6efd !important;
+}
+

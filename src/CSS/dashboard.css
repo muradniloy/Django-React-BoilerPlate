@@ -1,7 +1,7 @@
 /* Layout */
 .dashboard-wrapper {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  background: linear-gradient(351deg, #bc0a0a, #335582, #278800);
 }
 
 .admin-layout {
@@ -445,4 +445,94 @@
   padding-left: 14px;
   color: #1f2937; 
   font-weight: 500;
+}
+
+ .student-img {
+          width: 45px;
+          height: 45px;
+          object-fit: cover;
+          transition: transform 0.3s ease-in-out;
+        }
+        .img-container {
+          width: 45px;
+          height: 45px;
+          overflow: hidden;
+          border-radius: 50%;
+        }
+        tr:hover .student-img {
+          transform: scale(1.3);
+        }
+        .pagination .page-link {
+          color: #0d6efd;
+          border-radius: 8px;
+          border: none;
+          margin: 0 2px;
+          font-weight: 600;
+        }
+        .pagination .page-item.active .page-link {
+          background-color: #0d6efd;
+          color: white;
+          border-radius: 8px;
+        }
+        .page-link:hover {
+          background-color: #e9ecef;
+        }
+        .transition-all {
+          transition: background 0.2s;
+        }
+        .transition-all:hover {
+          background-color: #f8f9fa;
+        }
+
+        .avatar-box {
+          width: 50px;
+          height: 50px;
+          overflow: hidden;
+          border-radius: 12px;
+          background: #f0f0f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .student-photo {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: all 0.4s ease;
+        }
+        .student-row:hover .student-photo {
+          transform: scale(1.35);
+        }
+        .pagination .page-item.active .page-link {
+          background-color: #0d6efd !important;
+          color: white !important;
+        }
+        .pagination .page-link {
+          transition: all 0.2s ease;
+        }
+        .student-row:hover {
+          background-color: #fbfcfe;
+        }
+
+        /* Layout Styling */
+.student-container {
+  padding: 40px 20px;
+  min-height: 100vh;
+}
+
+/* যখন ড্রপডাউন ওপেন হবে কেবল তখনই দেখাবে */
+.dropdown-menu.show {
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+
+/* হোভার করলে যাতে ব্যাকগ্রাউন্ড সুন্দর হয় */
+.dropdown-item:active {
+    background-color: #0d6efd;
+}
+
+.profile-card-hover:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(2px);
 }

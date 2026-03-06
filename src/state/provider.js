@@ -1,40 +1,38 @@
 import React, { createContext, useContext, useReducer } from "react";
-import axios from "axios";
+import Cookies from "js-cookie";
 
-// Create context
 export const Context = createContext();
 
-// Initial state
 export const initialstate = {
-    profile: null,   // user info
-    access: localStorage.getItem("access") || null,
-    refresh: localStorage.getItem("refresh") || null,
+    profile: null,
+    access: Cookies.get("access") || null,
+    refresh: Cookies.get("refresh") || null,
 };
 
-// Reducer
 const reducer = (state, action) => {
     switch (action.type) {
+        case "ADD_DATA":
+        case "SET_TOKENS":
+            Cookies.set("access", action.access);
+            Cookies.set("refresh", action.refresh);
+            return { ...state, access: action.access, refresh: action.refresh };
+        case "ADD_PROFILE":
         case "SET_PROFILE":
             return { ...state, profile: action.profile };
-        case "SET_TOKENS":
-            localStorage.setItem("access", action.access);
-            localStorage.setItem("refresh", action.refresh);
-            return { ...state, access: action.access, refresh: action.refresh };
         case "LOGOUT":
+            Cookies.remove("access");
+            Cookies.remove("refresh");
             localStorage.clear();
-            return { profile: null, access: null, refresh: null };
+            return { ...state, profile: null, access: null, refresh: null };
         default:
             return state;
     }
 };
 
-// Provider
 export const Globalstate = ({ children }) => {
-    const value = useReducer(reducer, initialstate);
-    return <Context.Provider value={value}>{children}</Context.Provider>;
+    const [state, dispatch] = useReducer(reducer, initialstate);
+    return <Context.Provider value={[state, dispatch]}>{children}</Context.Provider>;
 };
 
-// Custom hook
 export const useGlobalState = () => useContext(Context);
-
-export default reducer;
+export default Globalstate;
