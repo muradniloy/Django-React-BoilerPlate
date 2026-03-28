@@ -7,6 +7,7 @@ const sideMenus = [
   { title: "Payment Category", icon: "/icons/reports.png", link: '/main-head/list' },
   { title: "Payment Head", icon: "/icons/reports.png", link: '/payment-head/list' },
   { title: "Fee Rate", icon: "/icons/reports.png", link: '/fee-rate/list' },
+  { title: "Accounts List", icon: "/icons/reports.png", link: '/Account/list' },
 ];
 
 export default function AccountingSettingPage() {

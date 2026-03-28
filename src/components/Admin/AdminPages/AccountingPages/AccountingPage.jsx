@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 const sideMenus = [
   { title: "Fee Collection", icon: "/icons/order.png", link: '/student_fee' },
   { title: "View Fee Collections List", icon: "/icons/reports.png", link: '/student_fee_list' },
+  { title: "View Account Transaction", icon: "/icons/reports.png", link: '/account_transaction' },
   { title: "Payment Head", icon: "/icons/reports.png", link: '/payment-head/list' },
   { title: "Fee Rate", icon: "/icons/reports.png", link: '/fee-rate/list' },
 ];

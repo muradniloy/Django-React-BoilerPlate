@@ -12,6 +12,8 @@ router.register(r'divisions', DivisionViewSet, basename='divisions')
 router.register(r'profiles', ProfileViewSet, basename='profile')
 router.register(r'programs', ProgramViewSet, basename='programs')
 router.register(r'sessions', SessionViewSet, basename='sessions')
+router.register(r'departments', DepartmentViewSet)
+router.register(r'designations', DesignationViewSet)
 
 #accounting related
 router.register(r'main-heads', MainHeadViewSet)
@@ -20,17 +22,25 @@ router.register(r'fee-rates', FeeRateViewSet, basename='feerate')
 router.register(r'payment-contacts', PaymentContactViewSet, basename='payment-contact')
 router.register(r'student-payments', StudentPaymentViewSet, basename='student-payment')
 router.register(r'invoice-verify', InvoiceVerificationViewSet, basename='invoice-verify')
+router.register(r'accounts', AccountViewSet)
 urlpatterns = [
     # --- Authentication & User ---
     path('token/', MyTokenView.as_view(), name='token'),
+    path('institution/', InstitutionDetailView.as_view(), name='institution-detail'),
     path('token/refresh/', MyTokenRefreshView.as_view(), name='token_refresh'),
     path('signup/', SignUpView.as_view(), name='signup'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('user/me/', UserInfoView.as_view(), name='user_me'),
     path('profile/', ProfileAPIView.as_view(), name='profile-get'),
     path('profile/update/', ProfileUpdateAPIView.as_view(), name='profile-update'),
+    path('user-profiles/', UserProfileListView.as_view(), name='user-profile-list'),
+    path('user-profiles/<int:pk>/', UserProfileDetailView.as_view(), name='user-profile-detail'),
     
-    # --- Logs ---
+    path('employees/all/', EmployeeListView.as_view(), name='employee_list'),
+    path('employees/create/', EmployeeCreateView.as_view(), name='employee_create'),
+    path('employees/profile/<int:pk>/', EmployeeDetailUpdateView.as_view(), name='employee_detail'),
+    path('employees/delete/<int:pk>/', EmployeeDeleteView.as_view(), name='employee_delete'),
+     # --- Logs ---
     path('logs/', GlobalAuditLogView.as_view(), name='global_logs'),
 
     # --- Product APIs ---

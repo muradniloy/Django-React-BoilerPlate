@@ -7,6 +7,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('MyShop.urls')),   # ✅ ONLY API ENTRY
+    path('api/', include('Accounts.urls')),   # ✅ ONLY API ENTRY
+    path('api/', include('Website.urls')),   # ✅ ONLY API ENTRY
 ]
 
 if settings.DEBUG:

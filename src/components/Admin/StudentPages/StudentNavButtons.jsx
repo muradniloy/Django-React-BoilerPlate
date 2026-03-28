@@ -109,6 +109,9 @@ const StudentNavButtons = ({ studentId }) => {
         <i className={`bi ${lockPayment ? "bi-lock-fill" : "bi-credit-card-fill"}`}></i> Payment
       </button>
 
+      <button onClick={() => !lockFullView && handleNavigation("/student_pay_history")} className={getButtonClass("/student_full_view", status.payment, lockFullView)} disabled={lockFullView}>
+        <i className={`bi ${lockFullView ? "bi-lock-fill" : "bi-file-earmark-person-fill"}`}></i> Payment History
+      </button>
       <button onClick={() => !lockFullView && handleNavigation("/student_full_view")} className={getButtonClass("/student_full_view", status.payment, lockFullView)} disabled={lockFullView}>
         <i className={`bi ${lockFullView ? "bi-lock-fill" : "bi-file-earmark-person-fill"}`}></i> Full View
       </button>

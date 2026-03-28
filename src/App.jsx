@@ -1,6 +1,5 @@
 import * as CM from './componentExporter';
 import { useEffect, useState } from "react";
-import StudentPaymentForm from './components/Admin/AdminPages/AccountingPages/StudentPaymentForm';
 
 const App = () => {
     const [{ profile }, dispatch] = CM.useGlobalState();
@@ -64,10 +63,18 @@ const App = () => {
                         <CM.Route path="/" element={<CM.NcHomePage />} />
                         <CM.Route path="/login" element={<CM.Login />} />
                         <CM.Route path="/verify-invoice/:student_id/:invoice_no" element={<CM.InvoiceVerification />} />
+                        <CM.Route path="/all-notices" element={<CM.AllNoticeList />} />
+                        <CM.Route path="/contact_us" element={<CM.ContactPage />} />
+                        <CM.Route path="/college-profile" element={<CM.CollegeProfile />} />
+                        <CM.Route path="/faculty-view" element={<CM.EmployeePublicView />} />
+                        <CM.Route path="/admission-query" element={<CM.AdmissionQueryForm />} />
+                        <CM.Route path="/lab-photos" element={<CM.LabPhotos />} />
+                        <CM.Route path="/register" element={<CM.Registration />} />
                     </CM.Route>
 
                     {/* ভুল URL হিট করলে হোম পেজ */}
                     <CM.Route path="*" element={<CM.NcHomePage />} />
+                    
                 </CM.Route>
 
                 {/* 🛡️ প্রোটেক্টড সেকশন: ProtectedRoute এর ভেতর সব ড্যাশবোর্ড পেজ */}
@@ -87,6 +94,14 @@ const App = () => {
                             <CM.Route path="/student_admission" element={<CM.StudentAdmissionView />} />
                             <CM.Route path="/student_payment" element={<CM.PaymentContactPage />} />
                             <CM.Route path="/student_full_view" element={<CM.StudentFullProfilePage />} />
+                            <CM.Route path="/student_pay_history" element={<CM.StudentSinglePaymentHistory />} />
+                        </CM.Route>
+                        <CM.Route element={<CM.AdminProtectionWrapper allowedGroups={['EmployeeView', 'Admin']} />}>
+                            <CM.Route path="/dashboard/employees" element={<CM.EmployeeList />} />
+                        </CM.Route>
+                        <CM.Route element={<CM.AdminProtectionWrapper allowedGroups={['EmployeeEdit', 'Admin']} />}>
+                            <CM.Route path="/employee_add" element={<CM.EmployeeForm />} />
+                            <CM.Route path="/update_employee" element={<CM.EmployeeForm />} />
                         </CM.Route>
 
                         {/* ✏️ স্টুডেন্ট ডাটা এডিট করার অনুমতি */}
@@ -109,12 +124,26 @@ const App = () => {
                             <CM.Route path="/dashboard/accounting" element={<CM.AccountingPages />} />
                             <CM.Route path="/student_fee" element={<CM.StudentPaymentForm />} />
                             <CM.Route path="/student_fee_list" element={<CM.StudentPaymentListPage />} />
+                            <CM.Route path="/account_transaction" element={<CM.AccountTransactionListPage />} />
+                        </CM.Route>
+                        {/* ➕ Website Related  */}
+                        <CM.Route element={<CM.AdminProtectionWrapper allowedGroups={['WebAdmin', 'Admin']} />}>
+                            <CM.Route path="/website/setting" element={<CM.WebsiteSetting />} />
+                            <CM.Route path="/notice_category" element={<CM.CategoryList />} />
+                            <CM.Route path="/add-category" element={<CM.CategoryForm />} />
+                            <CM.Route path="/notice-list" element={<CM.NoticeList />} />
+                            <CM.Route path="/add-notice" element={<CM.NoticeForm />} />
+                            <CM.Route path="/add-important-link" element={<CM.ImportantLinkForm />} />
+                            <CM.Route path="/edit-important-link" element={<CM.ImportantLinkForm />} />
+                            <CM.Route path="/important-links" element={<CM.ImportantLinkList />} />
+                            <CM.Route path="/sliders" element={<CM.SliderList />} />
+                             
                         </CM.Route>
 
                         {/* 👑 শুধুমাত্র ফুল অ্যাডমিন কন্ট্রোল */}
                         <CM.Route element={<CM.AdminProtectionWrapper allowedGroups={['Admin']} />}>
                             <CM.Route path="/dashboard/settings" element={<CM.SettingPage />} />
-                            <CM.Route path="/dashboard/settings/users" element={<CM.ProfileListPage />} />
+                            <CM.Route path="/dashboard/settings/users" element={<CM.UserListPage />} />
                             <CM.Route path="/dashboard/divisions" element={<CM.DivisionList />} />
                             <CM.Route path="/dashboard/divisions/edit/:id" element={<CM.DivisionEdit />} />
                             <CM.Route path="/dashboard/districts" element={<CM.DistrictList />} />
@@ -123,6 +152,7 @@ const App = () => {
                             <CM.Route path="/dashboard/upazillas/edit/:id" element={<CM.UpazillaEdit />} />
                             <CM.Route path="/Address/Settings" element={<CM.AddressSettingPage />} />
                             <CM.Route path="/Program/Settings" element={<CM.ProgramSettingPage />} />
+                            <CM.Route path="/Institution/Settings" element={<CM.InstitutionSettings />} />
                             <CM.Route path="/Programs" element={<CM.ProgramListPage />} />
                             <CM.Route path="/Programs/add" element={<CM.ProgramFormPage />} />
                             <CM.Route path="/Programs/edit/:id" element={<CM.ProgramFormPage />} />
@@ -136,11 +166,16 @@ const App = () => {
                             <CM.Route path="/boards/add" element={<CM.BoardFormPage />} />
                             <CM.Route path="/boards/edit/:id" element={<CM.BoardFormPage />} />
 
-                            <CM.Route path="/register" element={<CM.SignUp />} />
+                           
+                            
+                            <CM.Route path="/user-profile" element={<CM.UserProfileView />} />
                             <CM.Route path="/dashboard/logs" element={<CM.AuditLogPage />} />
                             
 
                             <CM.Route path="/Accouting/Settings" element={<CM.AccountingSettingPage />} />
+                            <CM.Route path="/Account/add" element={<CM.AccountForm />} />
+                            <CM.Route path="/Account/edit/:id" element={<CM.AccountForm />} />
+                            <CM.Route path="/Account/list" element={<CM.AccountListPage />} />
                             <CM.Route path="/main-head/list" element={<CM.MainHeadListPage />} />
                             <CM.Route path="/main-head/add" element={<CM.MainHeadFormPage />} />
                             <CM.Route path="/main-head/edit/:id" element={<CM.MainHeadFormPage />} />

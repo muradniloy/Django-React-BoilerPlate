@@ -31,6 +31,7 @@ import StudentList from './components/Admin/StudentPages/StudentList';
 import StudentPage from './components/Admin/StudentPages/StudentPage';
 // ✅ StudentProfile এখানে ইম্পোর্ট করুন (পাথ ঠিক আছে কি না দেখে নিন)
 import StudentProfile from './components/Admin/StudentPages/StudentProfile'; 
+import InstitutionSettings from './components/Admin/Settings/InstitutionSettings.jsx'
 
 import StudentAddressPage from './components/Admin/StudentPages/StudentAddressPage';
 import StudentEducationPage from './components/Admin/StudentPages/StudentEducationPage';
@@ -65,6 +66,8 @@ import UpazillaEdit from './components/Admin/Settings/Address_Settings/UpazillaE
 import AddressSettingPage from './components/Admin/Settings/Address_Settings/AddressSettingPage';
 // Accounting Related
 //AccountingSettingPages 
+import AccountListPage from './components/Admin/Settings/Accounting_Settings/AccountListPage.jsx';
+import AccountForm from './components/Admin/Settings/Accounting_Settings/AccountForm.jsx';
 import MainHeadFormPage from './components/Admin/Settings/Accounting_Settings/MainHeadFormPage';
 import MainHeadListPage from './components/Admin/Settings/Accounting_Settings/MainHeadListPage';
 import AccountingSettingPage from './components/Admin/Settings/Accounting_Settings/AccountingSettingPage';
@@ -78,6 +81,29 @@ import AccountingPages from './components/Admin/AdminPages/AccountingPages/Accou
 import StudentPaymentForm from './components/Admin/AdminPages/AccountingPages/StudentPaymentForm';
 import StudentPaymentListPage from './components/Admin/AdminPages/AccountingPages/StudentPaymentListPage';
 import InvoiceVerification from './components/Admin/AdminPages/AccountingPages/InvoiceVerification';
+import AccountTransactionListPage from './components/Admin/AdminPages/AccountingPages/AccountTransactionListPage.jsx';
+import StudentSinglePaymentHistory from './components/Admin/StudentPages/StudentSinglePaymentHistory';
+import UserListPage from './components/Admin/Settings/UserListPage';
+import UserProfileView from './components/Admin/Settings/UserProfileView';
+import EmployeeForm from './components/Admin/EmployeePages/EmployeeForm.jsx';
+import EmployeeList from './components/Admin/EmployeePages/EmployeeList';
+import CategoryList from './components/Admin/WebsiteAdminPages/CategoryList';
+import CategoryForm from './components/Admin/WebsiteAdminPages/CategoryForm';
+import NoticeForm from './components/Admin/WebsiteAdminPages/NoticeForm';
+import NoticeList from './components/Admin/WebsiteAdminPages/NoticeList';
+import WebsiteSetting from './components/Admin/WebsiteAdminPages/WebsiteSetting';
+import AllNoticeList from './components/PublicPages/HomeComponents/AllNoticeList';
+import ContactPage from './components/PublicPages/HomeComponents/ContactPage';
+import CollegeProfile from './components/PublicPages/HomeComponents/CollegeProfile';
+import EmployeePublicView from './components/PublicPages/HomeComponents/EmployeePublicView';
+import ImportantLinkForm from './components/Admin/WebsiteAdminPages/ImportantLinkForm';
+import ImportantLinkList from './components/Admin/WebsiteAdminPages/ImportantLinkList';
+import AdmissionQueryForm from './components/PublicPages/HomeComponents/AdmissionQueryForm';
+import { HomeSlider } from './components/PublicPages/HomeComponents/HomeSlider';
+import SliderList from './components/Admin/WebsiteAdminPages/SliderList';
+import SliderForm from './components/Admin/WebsiteAdminPages/SliderForm';
+import LabPhotos from './components/PublicPages/HomeComponents/LabPhotos';
+import Registration from './components/PublicPages/HomeComponents/Registration';
 
 
 // --- SweetAlert Toast ---
@@ -114,9 +140,18 @@ export {
     BoardListPage, BoardFormPage,
     AddressSettingPage,
     DivisionList, DivisionEdit, DistrictList, DistrictEdit, UpazillaList, UpazillaEdit,
+    UserListPage, UserProfileView, EmployeeForm,
+    EmployeeList,
 
     //Accounting Related Imports
-    MainHeadListPage, MainHeadFormPage, AccountingSettingPage,
+    MainHeadListPage, MainHeadFormPage, AccountingSettingPage, AccountForm, AccountListPage,
     PaymentHeadListPage, PaymentHeadFormPage, FeeRateFormPage, FeeRateListPage,
-    AccountingPages, StudentPaymentForm, StudentPaymentListPage, InvoiceVerification
+    AccountingPages, StudentPaymentForm, StudentPaymentListPage, InvoiceVerification, InstitutionSettings, 
+    AccountTransactionListPage, StudentSinglePaymentHistory,
+
+    //Website Admin Pages
+    WebsiteSetting, CategoryList, CategoryForm, NoticeForm, NoticeList, AllNoticeList,
+    ContactPage, CollegeProfile, EmployeePublicView, ImportantLinkForm, ImportantLinkList,
+    AdmissionQueryForm, SliderForm, SliderList, LabPhotos, Registration
+
 };

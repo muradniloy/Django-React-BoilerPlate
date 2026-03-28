@@ -1,207 +1,205 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axiosInstance from '../../../state/axiosInstance'; 
-import { domain } from "../../../env";
-import Swal from 'sweetalert2';
-import { hasAccess, isInGroup } from '../../../utils/permissions';
+import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import * as CM from "../../../componentExporter";
 
-const UserListPage = ({ currentUser }) => {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
+const UserListPage = () => {
     const navigate = useNavigate();
+    const [profiles, setProfiles] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    
+    // Filters State
+    const [filterGroup, setFilterGroup] = useState("");
+    const [filterDesignation, setFilterDesignation] = useState("");
 
-    // Pagination States
+    // Pagination states
     const [count, setCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
+    const [nextPage, setNextPage] = useState(null);
+    const [prevPage, setPrevPage] = useState(null);
 
-    // ১. ইউজার ডাটা ফেচ করার ফাংশন
-    const fetchUsers = useCallback(async (pageNo) => {
+    const fetchProfiles = useCallback(async (pageNum = 1) => {
         setLoading(true);
         try {
-            const fetchUrl = `${domain}/api/users/?page=${pageNo}${searchTerm ? `&search=${searchTerm}` : ''}`;
-            const res = await axiosInstance.get(fetchUrl);
-            setUsers(res.data.results || []);
-            setCount(res.data.count || 0);
-        } catch (error) {
-            console.error(error);
-            Swal.fire('Error!', 'ইউজার লিস্ট লোড করা সম্ভব হয়নি।', 'error');
+            let url = `/api/user-profiles/?page=${pageNum}`;
+            if (searchTerm) url += `&search=${searchTerm}`;
+            if (filterGroup) url += `&group=${filterGroup}`;
+            if (filterDesignation) url += `&designation=${filterDesignation}`;
+
+            const res = await CM.axiosInstance.get(url);
+            
+            if (res.data && res.data.results) {
+                setProfiles(res.data.results);
+                setCount(res.data.count);
+                setNextPage(res.data.next);
+                setPrevPage(res.data.previous);
+                setCurrentPage(pageNum);
+            }
+        } catch (err) {
+            console.error("API Error:", err);
+            CM.Swal.fire({ title: "Fetch Failed", icon: "error" });
         } finally {
             setLoading(false);
         }
-    }, [searchTerm]);
+    }, [searchTerm, filterGroup, filterDesignation]);
 
     useEffect(() => {
-        // অ্যাডমিন চেক
-        if (!isInGroup(currentUser?.groups, 'Admin')) {
-            Swal.fire({
-                title: 'অ্যাক্সেস ডিনাইড!',
-                text: 'এই পেজটি দেখার অনুমতি শুধুমাত্র অ্যাডমিনদের আছে।',
-                icon: 'error',
-                confirmButtonColor: '#3085d6',
-                confirmButtonText: 'পিছনে ফিরে যান'
-            }).then(() => {
-                navigate('/dashboard');
-            });
-            return;
-        }
-        fetchUsers(currentPage);
-    }, [currentUser, navigate, currentPage, fetchUsers]);
+        const timer = setTimeout(() => fetchProfiles(1), 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm, filterGroup, filterDesignation, fetchProfiles]);
 
-    // ২. ডিলিট ফাংশন (Sweet Alert সহ)
-    const handleDelete = (userId) => {
-        Swal.fire({
-            title: 'আপনি কি নিশ্চিত?',
-            text: "এই ইউজারকে ডিলিট করলে আর ফিরে পাওয়া যাবে না!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'হ্যাঁ, ডিলিট করুন!',
-            cancelButtonText: 'বাতিল'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                try {
-                    await axiosInstance.delete(`${domain}/api/users/${userId}/`);
-                    Swal.fire({
-                        title: 'ডিলিট হয়েছে!',
-                        text: 'ইউজারটি সফলভাবে রিমুভ করা হয়েছে।',
-                        icon: 'success',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                    fetchUsers(currentPage);
-                } catch (error) {
-                    Swal.fire('ব্যর্থ!', 'ইউজারটি ডিলিট করা যায়নি।', 'error');
-                }
-            }
-        });
-    };
-
-    const totalPages = Math.ceil(count / pageSize);
+    const totalPages = Math.ceil(count / 10);
 
     return (
-        <div className="d-flex flex-column bg-light vh-100">
-            {/* Header Section */}
-            <div className="bg-white border-bottom py-2 px-4 shadow-sm">
-                <div className="d-flex justify-content-between align-items-center">
-                    <div className="d-flex align-items-center gap-3">
-                        <h6 className="fw-bold m-0 text-dark">সিস্টেম ইউজার লিস্ট</h6>
-                        <span className="badge bg-dark-subtle text-dark rounded-pill px-3" style={{fontSize: '11px'}}>{count} জন ইউজার</span>
+        <div className="container-fluid mt-2 px-4 pb-5 bg-light">
+            {/* Header & Advanced Filters */}
+            <div className="card border-0 shadow-sm mb-4 rounded-4 bg-white p-3 border-start border-4 border-success">
+                <div className="row g-3 align-items-center">
+                    <div className="col-md-3">
+                        <h4 className="mb-0 fw-bold text-dark">User List</h4>
+                        <span className="text-muted small">Total Found: {count}</span>
                     </div>
-                    
-                    <div className="d-flex align-items-center gap-2">
-                        <div className="input-group input-group-sm" style={{ width: '280px' }}>
-                            <span className="input-group-text bg-light border-0"><i className="bi bi-search"></i></span>
+                    <div className="col-md-3">
+                        <div className="input-group input-group-sm">
+                            <span className="input-group-text bg-white border-end-0 rounded-start-pill"><i className="fa fa-search text-muted"></i></span>
                             <input 
-                                type="text" 
-                                className="form-control bg-light border-0 shadow-none" 
-                                placeholder="ইউজার খুঁজুন..." 
+                                className="form-control border-start-0 rounded-end-pill shadow-none" 
+                                placeholder="Name, Username..." 
                                 value={searchTerm}
-                                onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
+                    </div>
+                    <div className="col-md-2">
+                        <select className="form-select form-select-sm rounded-pill shadow-none" value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)}>
+                            <option value="">All Groups</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Student">Student</option>
+                        </select>
+                    </div>
+                    <div className="col-md-2">
+                        <select className="form-select form-select-sm rounded-pill shadow-none" value={filterDesignation} onChange={(e) => setFilterDesignation(e.target.value)}>
+                            <option value="">Designations</option>
+                            <option value="Teacher">Teacher</option>
+                            <option value="Developer">Developer</option>
+                            <option value="Staff">Staff</option>
+                        </select>
+                    </div>
+                    <div className="col-md-2 text-end">
+                        <Link to="/register" className="btn btn-success btn-sm rounded-pill px-3 shadow-sm w-100">
+                            <i className="fa fa-plus-circle me-1"></i> Add User
+                        </Link>
                     </div>
                 </div>
             </div>
 
             {/* Table Section */}
-            <div className="flex-grow-1 p-3 overflow-hidden">
-                <div className="card shadow-sm border-0 rounded-3 h-100">
-                    <div className="table-responsive h-100">
-                        <table className="table table-hover align-middle mb-0">
-                            <thead className="bg-white sticky-top shadow-sm" style={{ zIndex: 5 }}>
-                                <tr className="text-secondary small fw-bold text-uppercase" style={{ fontSize: '11px' }}>
-                                    <th className="ps-4 py-3 border-0">ID</th>
-                                    <th className="py-3 border-0">ইউজারনেম</th>
-                                    <th className="py-3 border-0">ইমেইল</th>
-                                    <th className="py-3 border-0">রোল/পার্মিশন</th>
-                                    <th className="py-3 border-0 text-center">অ্যাকশন</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    <tr><td colSpan="5" className="text-center py-5"><div className="spinner-border text-primary"></div></td></tr>
-                                ) : users.length > 0 ? (
-                                    users.map(user => (
-                                        <tr key={user.id} style={{ fontSize: '13.5px' }}>
-                                            <td className="ps-4 py-2 text-muted">#{user.id}</td>
-                                            <td className="py-2 fw-bold text-dark">{user.username}</td>
-                                            <td className="py-2">{user.email || 'N/A'}</td>
-                                            <td className="py-2">
-                                                {user.permissions?.length > 0 ? (
-                                                    <div className="d-flex gap-1 flex-wrap">
-                                                        {user.permissions.slice(0, 2).map((perm, idx) => (
-                                                            <span key={idx} className="badge bg-info-subtle text-info border border-info-subtle" style={{fontSize: '10px'}}>
-                                                                {perm}
-                                                            </span>
-                                                        ))}
-                                                        {user.permissions.length > 2 && <span className="text-muted small">+{user.permissions.length - 2} more</span>}
-                                                    </div>
-                                                ) : <span className="text-muted small">No Permissions</span>}
-                                            </td>
-                                            <td className="py-2 text-center">
-                                                <div className="btn-group shadow-none">
-                                                    {hasAccess(currentUser?.permissions, 'change_user') && (
-                                                        <button className="btn btn-sm btn-outline-primary border-0" title="এডিট">
-                                                            <i className="bi bi-pencil-square"></i>
-                                                </button>
-                                                
-                                                    )}
-                                                    {hasAccess(currentUser?.permissions, 'delete_user') && (
-                                                        <button 
-                                                            className="btn btn-sm btn-outline-danger border-0"
-                                                            onClick={() => handleDelete(user.id)}
-                                                            title="ডিলিট"
-                                                        >
-                                                            <i className="bi bi-trash"></i>
-                                                        </button>
-                                                    )}
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+                <div className="table-responsive">
+                    <table className="table table-hover align-middle mb-0">
+                        <thead className="bg-light">
+                            <tr className="text-uppercase small fw-bold" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
+                                <th className="ps-4 py-3">Member Details</th>
+                                <th className="py-3">Role/Group</th>
+                                <th className="py-3">Designation</th>
+                                <th className="py-3">Contact</th>
+                                <th className="text-center py-3 pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr><td colSpan="5" className="text-center py-5">
+                                    <div className="spinner-border spinner-border-sm text-success me-2"></div> Processing...
+                                </td></tr>
+                            ) : profiles.length > 0 ? (
+                                profiles.map((profile) => (
+                                    <tr key={profile.id} style={{ height: '55px' }}>
+                                        <td className="ps-4 py-2">
+                                            <div className="d-flex align-items-center">
+                                                <img 
+                                                    src={profile.image ? (profile.image.startsWith('http') ? profile.image : `${CM.domain}${profile.image}`) : `https://ui-avatars.com/api/?name=${profile.prouser?.username}&background=e8f5e9&color=2e7d32&bold=true`} 
+                                                    className="rounded-circle border border-2 border-white shadow-sm me-3" 
+                                                    style={{ width: '40px', height: '40px', objectFit: 'cover' }} 
+                                                    alt=""
+                                                />
+                                                <div style={{ lineHeight: '1.2' }}>
+                                                    <div className="fw-bold text-dark small">{profile.prouser?.first_name || profile.prouser?.username} {profile.prouser?.last_name}</div>
+                                                    <div className="text-muted" style={{ fontSize: '11px' }}>ID: #{profile.id} | <span className="text-success">@{profile.prouser?.username}</span></div>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan="5" className="text-center py-5">কোনো ইউজার পাওয়া যায়নি।</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                            </div>
+                                        </td>
+                                        <td className="py-2">
+                                            {profile.groups?.length > 0 ? profile.groups.map((g, i) => (
+                                                <span key={i} className="badge rounded-pill bg-opacity-10 text-success border border-success border-opacity-25 me-1" style={{ fontSize: '10px', fontWeight: '500' }}>
+                                                    {g}
+                                                </span>
+                                            )) : <span className="text-muted small">No Group</span>}
+                                        </td>
+                                        <td className="py-2 small fw-medium text-secondary">{profile.designation || "—"}</td>
+                                        <td className="py-2 small text-muted">
+                                            <div>{profile.prouser?.email}</div>
+                                            <div style={{ fontSize: '10px' }}>{profile.phone || "No Phone"}</div>
+                                        </td>
+                                        <td className="text-center pe-4 py-2">
+                                            <div className="d-flex justify-content-center gap-2">
+                                              
+                                             <button 
+                                                className="btn btn-sm btn-outline-info rounded-circle border-0 p-0 shadow-none" 
+                                                style={{ width: '32px', height: '32px' }} 
+                                                title="View Details"
+                                                // URL-এ কোনো আইডি নেই, শুধু ডাটা স্টেট হিসেবে পাঠানো হচ্ছে
+                                                onClick={() => navigate(`/user-profile`, { state: { profileData: profile } })}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                            </button>
+                                                    
+                                                
+                                                {/* Edit Button */}
+                                                <button className="btn btn-sm btn-outline-warning rounded-circle border-0 p-0 shadow-none" style={{ width: '32px', height: '32px' }} title="Edit User">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr><td colSpan="5" className="text-center py-5 text-muted">No users matching the criteria.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
 
-            {/* Pagination Footer */}
-            <div className="bg-white border-top py-2 px-4 shadow-sm">
-                <div className="d-flex justify-content-between align-items-center">
-                    <span className="text-muted small">
-                        Showing <strong>{(currentPage - 1) * pageSize + 1}</strong> - <strong>{Math.min(currentPage * pageSize, count)}</strong> of <strong>{count}</strong>
-                    </span>
-                    
-                    {totalPages > 1 && (
-                        <nav>
-                            <ul className="pagination pagination-sm mb-0 gap-1">
-                                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
-                                    <button className="page-link border-0 rounded-2 px-3 text-dark shadow-none" onClick={() => setCurrentPage(currentPage - 1)}>
-                                        Prev
-                                    </button>
-                                </li>
+                {/* Pagination Footer */}
+                <div className="card-footer bg-white border-top py-3 px-4">
+                    <div className="d-flex justify-content-between align-items-center">
+                        <span className="text-muted small">
+                            Showing page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong>
+                        </span>
+                        <div className="d-flex gap-2">
+                            <button className="btn btn-sm btn-light border px-3 rounded-pill" disabled={!prevPage} onClick={() => fetchProfiles(currentPage - 1)}>
+                                <i className="fa fa-angle-left me-1"></i> Prev
+                            </button>
+                            <div className="d-flex gap-1">
                                 {[...Array(totalPages)].map((_, i) => (
-                                    <li key={i} className={`page-item ${currentPage === i + 1 ? 'active' : ''}`}>
-                                        <button className={`page-link border rounded-2 mx-1 shadow-none ${currentPage === i + 1 ? 'bg-primary text-white border-primary' : 'bg-white text-dark'}`} 
-                                                onClick={() => setCurrentPage(i + 1)}>
-                                            {i + 1}
-                                        </button>
-                                    </li>
-                                ))}
-                                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
-                                    <button className="page-link border-0 rounded-2 px-3 text-dark shadow-none" onClick={() => setCurrentPage(currentPage + 1)}>
-                                        Next
+                                    <button 
+                                        key={i + 1} 
+                                        className={`btn btn-sm rounded-circle ${currentPage === i + 1 ? "btn-success shadow-sm" : "btn-light border text-muted"}`}
+                                        style={{ width: '30px', height: '30px', padding: '0', fontSize: '11px', fontWeight: '600' }}
+                                        onClick={() => fetchProfiles(i + 1)}
+                                    >
+                                        {i + 1}
                                     </button>
-                                </li>
-                            </ul>
-                        </nav>
-                    )}
+                                ))}
+                            </div>
+                            <button className="btn btn-sm btn-light border px-3 rounded-pill" disabled={!nextPage} onClick={() => fetchProfiles(currentPage + 1)}>
+                                Next <i className="fa fa-angle-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,6 +1,11 @@
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
+import traceback
+from django.db.models.functions import Coalesce
+from django.db.models import Max, Q, Exists, OuterRef, Sum
+import logging
+from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.password_validation import validate_password
@@ -12,6 +17,7 @@ from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
 import django_filters
+from rest_framework.permissions import AllowAny
 from django_filters.rest_framework import DjangoFilterBackend # এটি ইনস্টল থাকতে হবে
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -22,6 +28,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, MultiPartParser,
 from rest_framework.authentication import SessionAuthentication
 from itertools import chain
 from operator import attrgetter
+from Accounts.models import Account, AccountTransaction
 
 # --- Local Imports ---
 from .serializer import *
@@ -87,7 +94,14 @@ class ProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        profile = get_object_or_404(Profile, prouser=request.user)
+        # get_or_create ব্যবহার করলে ডাটা না থাকলে অটো তৈরি হবে, তাই আর 404 আসবে না
+        profile, created = Profile.objects.get_or_create(prouser=request.user)
+        
+        # যদি আপনার সিস্টেমে EmployeeProfile থাকে, তবে সেটির ডাটা পাঠানোর চেষ্টা করবে
+        if hasattr(request.user, 'employeeprofile'):
+            from .serializer import EmployeeProfileSerializer
+            return Response(EmployeeProfileSerializer(request.user.employeeprofile).data)
+            
         return Response(ProfileSerializer(profile).data)
 
 class ProfileUpdateAPIView(APIView):
@@ -111,11 +125,16 @@ class UserInfoView(APIView):
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
 
-# ==========================
-# 3. Student Personal & Address
-# ==========================
+class UserProfileListView(generics.ListAPIView):
+    # select_related ব্যবহার করা হয়েছে যাতে database query কম লাগে (Optimization)
+    queryset = Profile.objects.select_related('prouser').prefetch_related('prouser__groups').all().order_by('-pk')
+    serializer_class = ProfileSerializer
 
-# views.py ফাইলে এটি যোগ করুন
+class UserProfileDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Profile.objects.all()
+    serializer_class = ProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'id' # অথবা 'pk'
 
 
 class StudentPagination(PageNumberPagination):
@@ -268,7 +287,7 @@ class GlobalAuditLogView(APIView):
                 EducationQualification.history.all(), StudentAdmission.history.all(),
                 Division.history.all(), District.history.all(), Upazilla.history.all(),
                 Profile.history.all(), PaymentHead.history.all(), MainHead.history.all(),
-                FeeRate.history.all(), PaymentContact.history.all()
+                FeeRate.history.all(), PaymentContact.history.all(), StudentPayment.history.all()
 
             ),
             key=attrgetter('history_date'), reverse=True
@@ -359,9 +378,9 @@ class ProgramViewSet(viewsets.ModelViewSet): # ReadOnlyModelViewSet পরিব
     প্রোগ্রাম লিস্ট, অ্যাড, আপডেট এবং ডিলিট করার জন্য।
     """
     authentication_classes = COMMON_AUTH
-    permission_classes = [IsAuthenticated]
     queryset = Program.objects.all().order_by('Program_Name')
     serializer_class = ProgramSerializer
+    permission_classes = [AllowAny]
 
 class SessionViewSet(viewsets.ModelViewSet):
     authentication_classes = COMMON_AUTH
@@ -375,30 +394,31 @@ class SessionViewSet(viewsets.ModelViewSet):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class SignUpView(generics.GenericAPIView):
-    # সাইনআপ সাধারণত পাবলিক থাকে, তাই এখানে পারমিশন খালি রাখা হয়েছে
     permission_classes = [permissions.AllowAny] 
 
     def post(self, request):
+        # ১. রিকোয়েস্ট থেকে সব ডাটা নেওয়া
         username = request.data.get("username")
         email = request.data.get("email")
         password = request.data.get("password")
         first_name = request.data.get("first_name", "")
         last_name = request.data.get("last_name", "")
+        
+        # প্রোফাইল ফিল্ডস (যা আগে সেভ হচ্ছিল না)
+        phone = request.data.get("phone", "")
+        location = request.data.get("location", "")
+        designation = request.data.get("designation", "")
+        about = request.data.get("about", "")
+        image = request.FILES.get("image") # ইমেজ FILES থেকে নিতে হয়
 
-        # ১. ডাটা ভ্যালিডেশন
+        # ২. ডাটা ভ্যালিডেশন
         if not username or not email or not password:
-            return Response({"detail": "সবগুলো ফিল্ড পূরণ করা বাধ্যতামূলক।"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Username, Email and Password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         if User.objects.filter(username=username).exists():
-            return Response({"detail": "এই ইউজারনেমটি ইতিমধ্যে ব্যবহার করা হয়েছে।"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if User.objects.filter(email=email).exists():
-            return Response({"detail": "এই ইমেইলটি ইতিমধ্যে ব্যবহার করা হয়েছে।"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "This username is already taken."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # ২. পাসওয়ার্ড ভ্যালিডেশন (Django Default)
-            validate_password(password)
-            
             # ৩. ইউজার তৈরি করা
             user = User.objects.create_user(
                 username=username, 
@@ -408,20 +428,27 @@ class SignUpView(generics.GenericAPIView):
                 last_name=last_name
             )
             
-            # ৪. ইউজারের জন্য প্রোফাইল তৈরি করা
-            Profile.objects.create(prouser=user)
+            # ৪. ইউজারের জন্য প্রোফাইল তৈরি করা এবং বাকি ডাটা সেভ করা
+            # এখানে প্রোফাইল ক্রিয়েট করার সময় সব ফিল্ড পাস করতে হবে
+            Profile.objects.create(
+                prouser=user,
+                phone=phone,
+                location=location,
+                designation=designation,
+                about=about,
+                image=image
+            )
 
             return Response({
-                "detail": "অ্যাকাউন্ট এবং প্রোফাইল সফলভাবে তৈরি হয়েছে!",
+                "detail": "Account and Profile created successfully!",
                 "username": user.username
             }, status=status.HTTP_201_CREATED)
 
-        except ValidationError as e:
-            return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            # যদি কোনো কারণে এরর হয় তবে তৈরি করা ইউজারটি ডিলিট করে দেওয়া উচিত (Rollback)
+            if 'user' in locals():
+                user.delete()
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-from django.shortcuts import get_object_or_404
 
 class ReligionListAPIView(APIView):
     authentication_classes = [CustomAuthentication] 
@@ -667,6 +694,7 @@ class EducationQualificationView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
 
+
 class StudentPaymentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentPaymentSerializer
     filter_backends = [filters.SearchFilter]
@@ -679,47 +707,73 @@ class StudentPaymentViewSet(viewsets.ModelViewSet):
         'student__studentadmission__student_id_no'
     ]
 
+
     def get_queryset(self):
-        # মডেল অনুযায়ী সঠিক রিলেশন পাথ: 
-        # fees (FeeRate) -> payment_head (PaymentHead) -> payment_category (MainHead)
+        # ১. বেস কোয়েরি (পারফরম্যান্সের জন্য select_related)
         queryset = StudentPayment.objects.select_related(
-            'student', 
-            'fees', 
-            'fees__payment_head', 
-            'fees__payment_head__payment_category'
+            'student', 'fees', 'fees__payment_head', 'fees__payment_head__payment_category'
         ).all()
         
-        # ইউআরএল প্যারামিটার থেকে ফিল্টার ভ্যালু নেওয়া
         params = self.request.query_params
+        
+        # ২. সব প্যারামিটার গেট করা
         start_date = params.get('start_date')
         end_date = params.get('end_date')
-        category_name = params.get('category_name') # MainHead name
-        fees_id = params.get('fees_id')             # FeeRate ID
+        category_name = params.get('category_name') 
+        fees_id = params.get('fees_id')             
         student_id = params.get('student')
+        approved = params.get('approved')
+        due_status = params.get('due_status')
+        search = params.get('search')
 
-        # ১. ডেট রেঞ্জ ফিল্টার
-        if start_date:
-            queryset = queryset.filter(payment_date__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(payment_date__lte=end_date)
+        # ৩. পর্যায়ক্রমে ফিল্টার অ্যাপ্লাই করা (Chain Filtering)
         
-        # ২. স্টুডেন্ট আইডি ফিল্টার
+        # ডেট ফিল্টার
+        if start_date and end_date:
+            queryset = queryset.filter(payment_date__range=[start_date, end_date])
+        elif start_date:
+            queryset = queryset.filter(payment_date__gte=start_date)
+        elif end_date:
+            queryset = queryset.filter(payment_date__lte=end_date)
+            
+        # স্টুডেন্ট ও সার্চ ফিল্টার
         if student_id:
             queryset = queryset.filter(student_id=student_id)
+        if search:
+            queryset = queryset.filter(invoice_no__icontains=search)
 
-        # ৩. ক্যাটাগরি ফিল্টার (সঠিক পাথ অনুযায়ী)
-        if category_name:
-            queryset = queryset.filter(
-                fees__payment_head__payment_category__main_head_name=category_name
-            )
+        # এপ্রুভাল স্ট্যাটাস
+        if approved == 'true': 
+            queryset = queryset.filter(payment_approved=True)
+        elif approved == 'false': 
+            queryset = queryset.filter(payment_approved=False)
 
-        # ৪. স্পেসিফিক ফি হেড (FeeRate) ফিল্টার
-        if fees_id:
-            queryset = queryset.filter(fees_id=fees_id)
+        # ৪. স্পেশাল Due/Cleared লজিক (যা আমরা একটু আগে ফিক্স করলাম)
+        if due_status:
+            if due_status == 'due':
+                # যাদের অন্তত একটি আইটেমে ডিউ আছে
+                due_invoices = StudentPayment.objects.filter(new_due__gt=0).values_list('invoice_no', flat=True)
+                queryset = queryset.filter(invoice_no__in=due_invoices)
+            elif due_status == 'cleared':
+                # যাদের কোনো আইটেমেই ডিউ নেই (Exclude logic)
+                invoices_with_due = StudentPayment.objects.filter(new_due__gt=0).values_list('invoice_no', flat=True)
+                queryset = queryset.exclude(invoice_no__in=invoices_with_due)
 
-        # ৫. ডিসেন্ডিং সর্টিং (নতুন আইডি সবার আগে আসবে)
-        # distinct() ব্যবহার করা হয়েছে যাতে একই ইনভয়েসের মাল্টিপল এন্ট্রি ডুপ্লিকেট রো তৈরি না করে
-        return queryset.order_by('-id').distinct()
+        # ৫. ক্যাটাগরি বা হেড ফিল্টার
+        if category_name or fees_id:
+            temp_filter = StudentPayment.objects.all()
+            if category_name:
+                temp_filter = temp_filter.filter(fees__payment_head__payment_category__main_head_name=category_name)
+            if fees_id:
+                temp_filter = temp_filter.filter(fees_id=fees_id)
+            
+            matching_invoices = temp_filter.values_list('invoice_no', flat=True).distinct()
+            queryset = queryset.filter(invoice_no__in=matching_invoices)
+
+        # ৬. ফাইনাল ডিসটিনক্ট ইনভয়েস লজিক
+        distinct_ids = queryset.values('invoice_no').annotate(m_id=Max('id')).values_list('m_id', flat=True)
+        
+        return StudentPayment.objects.filter(id__in=distinct_ids).order_by('-id')
     @action(detail=False, methods=['get'])
     def search_students(self, request):
         query = request.query_params.get('q', '')
@@ -734,19 +788,11 @@ class StudentPaymentViewSet(viewsets.ModelViewSet):
 
         results = []
         for s in students:
-            admission = s.studentadmission_set.first()
+            admission = s.studentadmission_set.select_related('Program_Name').first()
             
-            # Program/Course ফিল্ডটি খুঁজে বের করা
-            program_name = 'N/A'
-            if admission:
-                # যদি ফিল্ডের নাম 'program' না হয়ে অন্য কিছু হয় (যেমন 'course'), সেটি চেক করুন
-                # নিচের লাইনটি Safe Navigation ব্যবহার করছে
-                if hasattr(admission, 'program') and admission.program:
-                    program_name = admission.program.name if hasattr(admission.program, 'name') else str(admission.program)
-                elif hasattr(admission, 'course') and admission.course:
-                    program_name = admission.course.name if hasattr(admission.course, 'name') else str(admission.course)
-                elif hasattr(admission, 'class_name') and admission.class_name:
-                    program_name = str(admission.class_name)
+            program_display = 'N/A'
+            if admission and admission.Program_Name:
+                program_display = admission.Program_Name.Program_Name
 
             results.append({
                 'id': s.id,
@@ -756,29 +802,127 @@ class StudentPaymentViewSet(viewsets.ModelViewSet):
                 'student_id_no': admission.student_id_no if admission else 'N/A',
                 'mobile': s.mobile,
                 'photo': s.photo.url if s.photo else None,
-                'program': program_name  # এখন আর এরর আসবে না
+                'program': program_display
             })
+            
         return Response(results)
+        
+    def perform_create(self, serializer):
+    # ফ্রন্টএন্ড থেকে পাঠানো invoice_no রিসিভ করা
+        invoice_no = self.request.data.get('invoice_no')
+    
+        if invoice_no:
+        # যদি ইনভয়েস নম্বর পাঠানো হয়, তবে সেটিসহ সেভ হবে
+            serializer.save(collected_by=self.request.user, invoice_no=invoice_no)
+        else:
+        # যদি ইনভয়েস নম্বর না থাকে (প্রথম আইটেমের ক্ষেত্রে), তবে অটো জেনারেট হবে
+            serializer.save(collected_by=self.request.user)
+    
+
+    # আপনার ভিউসেট ক্লাসের ভেতরে
+    @action(detail=False, methods=['post'], url_path='bulk-status-update')
+    def bulk_status_update(self, request):
+        ids = request.data.get('ids', [])
+        
+        if not ids:
+            return Response({"error": "No IDs provided"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with transaction.atomic():
+                # ১. সিলেক্ট করা আইডিগুলোর কুয়েরিসেট
+                payments = StudentPayment.objects.filter(id__in=ids).order_by('id')
+                
+                if not payments.exists():
+                    return Response({"error": "No records found"}, status=status.HTTP_404_NOT_FOUND)
+
+                # ২. প্রথম পেমেন্ট অবজেক্টটি নিয়ে ইনভয়েস নম্বর নিশ্চিত করা
+                first_payment = payments.first()
+                
+                # যদি প্রথমটার ইনভয়েস না থাকে, তবে save() কল করলে আপনার মডেলের লজিক কাজ করবে
+                if not first_payment.invoice_no:
+                    first_payment.save() 
+                
+                common_invoice_no = first_payment.invoice_no
+
+                # ৩. বাকি সব পেমেন্টকে এই একই ইনভয়েস নম্বরে আপডেট করা
+                # আমরা এখানে .update() ব্যবহার করছি যাতে দ্রুত কাজ হয়
+                updated_count = payments.update(invoice_no=common_invoice_no)
+
+                return Response({
+                    "message": f"Successfully grouped {updated_count} items under Invoice: {common_invoice_no}",
+                    "invoice_no": common_invoice_no,
+                    "status": "success"
+                }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @action(detail=False, methods=['post'], url_path='bulk-approve-payments')
+    def bulk_approve_payments(self, request):
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({"error": "No IDs selected"}, status=400)
+        
+        try:
+            with transaction.atomic():
+                # ১. সিলেক্ট করা আইডিগুলো থেকে ইউনিক ইনভয়েস নম্বরগুলো বের করা
+                invoice_nos = StudentPayment.objects.filter(id__in=ids).values_list('invoice_no', flat=True).distinct()
+                
+                for inv_no in invoice_nos:
+                    # ২. ওই ইনভয়েসের সব আইটেম ধরা (যেগুলো এখনো পেন্ডিং)
+                    payments_to_approve = StudentPayment.objects.filter(
+                        invoice_no=inv_no, 
+                        payment_approved=False
+                    )
+
+                    if payments_to_approve.exists():
+                        # ৩. পুরো ইনভয়েসের টোটাল অ্যামাউন্ট ক্যালকুলেট করা
+                        total_amount = sum(payment.amount for payment in payments_to_approve)
+                        
+                        # রেফারেন্সের জন্য প্রথম অবজেক্টটি নেওয়া (Account এবং Method এর জন্য)
+                        first_payment = payments_to_approve.first()
+                        
+                        # ৪. ইনভয়েসের সব আইটেম একসাথে আপডেট করা (Approve করা)
+                        payments_to_approve.update(
+                            payment_approved=True,
+                            approved_by=request.user,
+                            approval_date=timezone.now()
+                        )
+
+                        # ৫. পুরো ইনভয়েসের জন্য মাত্র একটি ট্রানজেকশন এন্ট্রি করা
+                        AccountTransaction.objects.create(
+                            account=first_payment.account,
+                            amount=total_amount, # এখানে পুরো ইনভয়েসের যোগফল যাচ্ছে
+                            transaction_type='income',
+                            reference_no=inv_no,
+                            payment_method=getattr(first_payment, 'paymentType', 'cash'),
+                            purpose=f"Student Fee Collection (Invoice: {inv_no})",
+                            created_by=request.user
+                        )
+                
+                return Response({
+                    "message": f"Successfully approved {len(invoice_nos)} invoice(s).",
+                    "status": "success"
+                }, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
 
 @authentication_classes([]) 
 @permission_classes([permissions.AllowAny])
 class InvoiceVerificationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = StudentPayment.objects.all()
     serializer_class = StudentPaymentSerializer
-   
-    authentication_classes = [] 
-    permission_classes = [permissions.AllowAny]
 
     @action(
         detail=False, 
         methods=['get'], 
         url_path='verify/(?P<student_id>[^/.]+)/(?P<invoice_no>[^/.]+)',
-        authentication_classes=[], # অ্যাকশনের ভেতর আবার নিশ্চিত করা
-        permission_classes=[permissions.AllowAny]
     )
     def verify_invoice(self, request, student_id=None, invoice_no=None):
         try:
-            # select_related ব্যবহার করা হয়েছে যাতে ৩টি টেবিল থেকে ডাটা একসাথে আসে
             payments = StudentPayment.objects.filter(
                 student_id=student_id, 
                 invoice_no=invoice_no
@@ -788,48 +932,235 @@ class InvoiceVerificationViewSet(viewsets.ReadOnlyModelViewSet):
                 return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
 
             student = payments[0].student
+            
+            # --- স্টুডেন্ট আইডি ও প্রোগ্রাম ডাটা (StudentAdmission & Program মডেল থেকে) ---
+            # admission_set এর বদলে আপনার রিলেটেড নাম অনুযায়ী admission রেকর্ড খোঁজা
+            admission = student.studentadmission_set.select_related('Program_Name').first() 
+            
+            student_data = StudentPersonalSerializer(student).data
+            
+            if admission:
+                # StudentAdmission মডেল থেকে student_id_no
+                student_data['student_id_no'] = admission.student_id_no if admission.student_id_no else 'N/A'
+                
+                # Program মডেল থেকে Program_Name
+                if admission.Program_Name:
+                    student_data['program'] = admission.Program_Name.Program_Name
+                else:
+                    student_data['program'] = 'N/A'
+            else:
+                student_data['student_id_no'] = 'N/A'
+                student_data['program'] = 'N/A'
+
+            # --- পেমেন্ট লিস্ট লজিক ---
+            institution = Institution.objects.first()
+            institution_data = None
+
+            if institution:
+                institution_data = {
+                    "name": institution.name,
+                    "slogan": institution.slogan,
+                    "address": institution.address,
+                    "email": institution.email,
+                    "mobile": institution.mobile,
+                    "telephone": institution.telephone,
+                    "website": institution.website,
+                    "logo": request.build_absolute_uri(institution.logo.url) if institution.logo else None,
+                }
             payment_list = []
             total_fee_calc = 0.0
 
             for p in payments:
-                # মেইন ফি ক্যালকুলেশন: FeeRate এর অরিজিনাল অ্যামাউন্ট
                 m_fee = float(p.fees.amount if p.fees else 0)
                 total_fee_calc += m_fee
                 
-                # রিলেশনশিপ থেকে নাম বের করা
-                # p.fees (FeeRate) -> payment_head (PaymentHead) -> head_name
-                h_name = p.fees.payment_head.head_name if p.fees and p.fees.payment_head else "Fees"
+                contact = PaymentContact.objects.filter(student_id=student_id, fees=p.fees).first()
+                c_amount = float(contact.amount) if contact else m_fee
                 
-                # p.fees -> payment_head -> payment_category (MainHead) -> main_head_name
-                c_name = "General"
-                if p.fees and p.fees.payment_head and p.fees.payment_head.payment_category:
-                    c_name = p.fees.payment_head.payment_category.main_head_name
+                prev_paid_sum = StudentPayment.objects.filter(
+                    student_id=student_id,
+                    fees=p.fees,
+                    id__lt=p.id 
+                ).aggregate(total=models.Sum('amount'))['total'] or 0.0
+
+                h_name = p.fees.payment_head.head_name if p.fees and p.fees.payment_head else "Fees"
+                c_name = p.fees.payment_head.payment_category.main_head_name if p.fees and p.fees.payment_head and p.fees.payment_head.payment_category else "General"
 
                 payment_list.append({
                     "category_name": c_name,
                     "head_name": h_name,
                     "mainFeeAmount": round(m_fee, 2),
-                    "old_due": float(p.old_due or 0),
-                    "discount_value": float(p.discount_value or 0),
-                    "amount": float(p.amount or 0),
-                    "new_due": float(p.new_due or 0),
+                    "contractAmount": round(c_amount, 2),
+                    "totalPaidPrev": float(prev_paid_sum),
+                    "oldDue": float(p.old_due or 0),
+                    "discount_type": p.discount_type, # "1" (Flat) বা "2" (%) পাঠাবে
+                    "payment_approved": p.payment_approved,
+                    "actualDiscount": float(p.discount_value or 0),
+                    "paymentType": p.get_paymentType_display(), # আপনার মডেল অনুযায়ী 'paymentType'
+                    "payingAmount": float(p.amount or 0),
+                    "newDue": float(p.new_due or 0),
                     "payment_date": p.payment_date,
                 })
 
-            total_paid = sum(item['amount'] for item in payment_list)
-            total_due = payment_list[-1]['new_due']
+            total_paid = sum(item['payingAmount'] for item in payment_list)
+            total_due_final = payment_list[-1]['newDue'] if payment_list else 0
 
             return Response({
-                "student": StudentPersonalSerializer(student).data if student else {},
+                "student": student_data,
                 "payments": payment_list,
+                "institution": institution_data,
                 "summary": {
                     "total_fee": round(total_fee_calc, 2),
                     "total_paid": round(total_paid, 2),
-                    "total_due": round(total_due, 2)
+                    "total_due": round(total_due_final, 2)
                 }
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
             import traceback
             traceback.print_exc() 
-            return Response({"error": f"Server Error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Server Error", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class InstitutionDetailView(APIView):
+    def get(self, request):
+        instance = Institution.objects.first() # সবসময় প্রথম রেকর্ডটি নিবে
+        if instance:
+            serializer = InstitutionSerializer(instance)
+            return Response(serializer.data)
+        return Response({"detail": "No data found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        instance = Institution.objects.first()
+        if instance:
+            # যদি আগে থেকেই ডাটা থাকে তবে আপডেট করবে
+            serializer = InstitutionSerializer(instance, data=request.data, partial=True)
+        else:
+            # না থাকলে নতুন তৈরি করবে
+            serializer = InstitutionSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class AccountViewSet(viewsets.ModelViewSet):
+    queryset = Account.objects.all().order_by('-id')
+    serializer_class = AccountSerializer
+
+
+class DepartmentViewSet(viewsets.ModelViewSet):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+
+class DesignationViewSet(viewsets.ModelViewSet):
+    queryset = Designation.objects.all()
+    serializer_class = DesignationSerializer
+
+
+class EmployeeListView(APIView):
+    authentication_classes = COMMON_AUTH
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        search_query = request.query_params.get('search', '')
+        employees = EmployeeProfile.objects.all().filter(
+            models.Q(employee_id__icontains=search_query) |
+            models.Q(user__first_name__icontains=search_query) |
+            models.Q(mobile__icontains=search_query)
+        ).order_by('-created_at')
+        
+        serializer = EmployeeProfileSerializer(employees, many=True)
+        return Response(serializer.data)
+
+# ২. নতুন এমপ্লয়ি তৈরি (User + Profile)
+class EmployeeCreateView(APIView):
+    authentication_classes = COMMON_AUTH
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        data = request.data
+        try:
+            # এখানে ইউজার তৈরির অংশটি সম্পূর্ণ বাদ দেওয়া হয়েছে।
+            # সরাসরি প্রোফাইল সিরিয়ালাইজার কল করা হচ্ছে।
+            
+            serializer = EmployeeProfileSerializer(data=data)
+            
+            if serializer.is_valid():
+                # যেহেতু ইউজার পরে যুক্ত হবে, তাই এখানে user=user পাঠানোর দরকার নেই।
+                # মডেলের user ফিল্ডটি null=True, blank=True থাকতে হবে।
+                serializer.save() 
+                
+                return Response({
+                    "message": "Employee Profile created successfully (without user account)",
+                    "data": serializer.data
+                }, status=status.HTTP_201_CREATED)
+            
+            # সিরিয়ালাইজার ইনভ্যালিড হলে রোলব্যাক
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Exception as e:
+            # যেকোনো এরর হলে ট্রানজ্যাকশন রোলব্যাক হবে
+            transaction.set_rollback(True)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+# ৩. প্রোফাইল ডিটেইল এবং আপডেট (একই ক্লাসে হ্যান্ডেল করা হয়েছে)
+class EmployeeDetailUpdateView(APIView):
+    authentication_classes = COMMON_AUTH
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        employee = get_object_or_404(EmployeeProfile, pk=pk)
+        serializer = EmployeeProfileSerializer(employee)
+        return Response(serializer.data)
+
+    @transaction.atomic
+    def put(self, request, pk):
+        employee = get_object_or_404(EmployeeProfile, pk=pk)
+        data = request.data
+        
+        # ১. ইউজারের নাম আপডেট (যদি ইউজার প্রোফাইলের সাথে যুক্ত থাকে)
+        user = employee.user
+        if user:
+            user.first_name = data.get('first_name', user.first_name)
+            user.last_name = data.get('last_name', user.last_name)
+            # ইমেইল আপডেট করতে চাইলে সেটিও এখানে যোগ করতে পারেন
+            user.save()
+
+        # ২. প্রোফাইল আপডেট (এটি সবসময় কাজ করবে, ইউজার থাকুক বা না থাকুক)
+        serializer = EmployeeProfileSerializer(employee, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "message": "Profile updated successfully", 
+                "has_user": True if user else False,
+                "data": serializer.data
+            })
+        
+        # কোনো এরর হলে ট্রানজ্যাকশন রোলব্যাক হবে
+        transaction.set_rollback(True)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+# ৪. এমপ্লয়ি ডিলিট
+class EmployeeDeleteView(APIView):
+    authentication_classes = COMMON_AUTH
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def delete(self, request, pk):
+        employee = get_object_or_404(EmployeeProfile, pk=pk)
+        user = employee.user
+
+        if user:
+            # যদি প্রোফাইলের সাথে ইউজার অ্যাকাউন্ট থাকে, তবে ইউজার ডিলিট হবে।
+            # মডেলের CASCADE অনুযায়ী প্রোফাইলটিও অটোমেটিক ডিলিট হয়ে যাবে।
+            user.delete()
+        else:
+            # যদি প্রোফাইলের সাথে কোনো ইউজার অ্যাকাউন্ট না থাকে, 
+            # তবে শুধুমাত্র প্রোফাইলটি ডিলিট করতে হবে।
+            employee.delete()
+
+        return Response({
+            "message": "Employee and associated account deleted successfully"
+        }, status=status.HTTP_200_OK) # অথবা HTTP_204_NO_CONTENT

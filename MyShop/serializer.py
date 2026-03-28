@@ -3,6 +3,8 @@ from .models import *
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Sum
+from Accounts.models import Account
 
 
 
@@ -19,6 +21,7 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 User = get_user_model()
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -486,37 +489,120 @@ class PaymentContactSerializer(serializers.ModelSerializer):
         ]
 
 class StudentPaymentSerializer(serializers.ModelSerializer):
-    # স্টুডেন্টের পুরো নাম পাঠানোর জন্য SerializerMethodField ব্যবহার করা ভালো
-    student_full_name = serializers.SerializerMethodField()
-    student_id_no = serializers.SerializerMethodField()
-    student_photo = serializers.SerializerMethodField()
-    head_name = serializers.ReadOnlyField(source='fees.payment_head.head_name', default="General Fee")
+    # এগুলো শুধু ডাটা দেখানোর (Read-only) জন্য, তাই ফর্মের মেইন 'amount' বা 'discount_value' ডিস্টার্ব হবে না
+    student_full_name = serializers.SerializerMethodField(read_only=True)
+    student_id_no = serializers.SerializerMethodField(read_only=True)
+    student_photo = serializers.SerializerMethodField(read_only=True)
+    head_name = serializers.ReadOnlyField(source='fees.payment_head.payment_head_name', default="General Fee")
+    all_heads = serializers.SerializerMethodField(read_only=True)
+    
+    # ইনভয়েস লেভেলের ক্যালকুলেটেড ফিল্ড (Display Only)
+    original_fee_rate = serializers.SerializerMethodField(read_only=True)
+    total_discount_amount = serializers.SerializerMethodField(read_only=True)
+    total_invoice_amount = serializers.SerializerMethodField(read_only=True)
+    total_due_amount = serializers.SerializerMethodField(read_only=True)
+    net_payable_amount = serializers.SerializerMethodField(read_only=True)
+    collected_by_name = serializers.ReadOnlyField(source='collected_by.username')
+    account_display = serializers.SerializerMethodField()
+
+   
 
     class Meta:
         model = StudentPayment
+        # '__all__' থাকলে মডেলের সব অরিজিনাল ফিল্ড (amount, discount_value) ফর্মে কাজ করবে
         fields = '__all__'
+        read_only_fields = ['collected_by', 'invoice_no']
 
+    # --- ফর্মের জন্য প্রয়োজনীয় অরিজিনাল ফাংশনগুলো ---
     def get_student_full_name(self, obj):
-        if obj.student:
-            # first_name এবং last_name যোগ করে পাঠানো হচ্ছে
-            return f"{obj.student.first_name}"
-        return "Unknown Student"
+        return f"{obj.student.first_name}" if obj.student else "Unknown Student"
+    
+    def get_account_display(self, obj):
+        if obj.account:
+            # এটি "Main Cash (Cash In Hand)" বা "DBBL (Bank Account)" রিটার্ন করবে
+            return f"{obj.account.account_name} ({obj.account.bank_name})"
+        return "N/A"
 
     def get_student_id_no(self, obj):
         if obj.student:
-            # admission টেবিল থেকে আইডি নিয়ে আসা
             admission = obj.student.studentadmission_set.first()
-            if admission and admission.student_id_no:
-                return admission.student_id_no
+            return admission.student_id_no if admission else "N/A"
         return "N/A"
 
     def get_student_photo(self, obj):
-        if obj.student and obj.student.photo:
-            try:
-                return obj.student.photo.url
-            except:
-                return None
-        return None
+        try:
+            return obj.student.photo.url if obj.student and obj.student.photo else None
+        except:
+            return None
+
+    def get_all_heads(self, obj):
+        heads = StudentPayment.objects.filter(
+            invoice_no=obj.invoice_no
+        ).values_list('fees__payment_head__head_name', flat=True).distinct()
+        return list(heads)
+
+    # --- ক্যালকুলেশন ফাংশনগুলো (টেবিলের জন্য) ---
+
+    def get_original_fee_rate(self, obj):
+        total = StudentPayment.objects.filter(
+            invoice_no=obj.invoice_no
+        ).aggregate(total=Sum('fees__amount'))['total']
+        return float(total) if total else 0.0
+
+    def get_total_discount_amount(self, obj):
+        payments = StudentPayment.objects.filter(invoice_no=obj.invoice_no)
+        total_discount = 0
+        for p in payments:
+            if not p.fees: continue
+            fee_amount = float(p.fees.amount)
+            d_type = p.discount_type 
+            d_val = float(p.discount_value) if p.discount_value else 0.0
+            
+            if d_type == "2": # %
+                total_discount += (fee_amount * d_val) / 100
+            else: # Flat
+                total_discount += d_val
+        return round(total_discount, 2)
+    
+    def get_net_payable_amount(self, obj):
+        # ১. অরিজিনাল ফি রেট বের করা (আগের ফাংশন থেকে সাহায্য নেওয়া যেতে পারে অথবা সরাসরি)
+        original = StudentPayment.objects.filter(
+            invoice_no=obj.invoice_no
+        ).aggregate(total=Sum('fees__amount'))['total'] or 0
+        
+        # ২. ডিসকাউন্ট অ্যামাউন্ট বের করা (পার্সেন্টেজ ও ফ্ল্যাট লজিকসহ)
+        payments = StudentPayment.objects.filter(invoice_no=obj.invoice_no)
+        total_discount = 0
+        for p in payments:
+            if p.fees:
+                fee_val = float(p.fees.amount)
+                d_val = float(p.discount_value) if p.discount_value else 0.0
+                if p.discount_type == "2": # Percentage
+                    total_discount += (fee_val * d_val) / 100
+                else: # Flat
+                    total_discount += d_val
+        
+        # ৩. ক্যালকুলেশন: Original - Discount
+        net_payable = float(original) - float(total_discount)
+        
+        return round(net_payable, 2)
+
+    def get_total_invoice_amount(self, obj):
+        # এটি এখন পেইড অ্যামাউন্টের সাম দেখাবে টেবিলে
+        total = StudentPayment.objects.filter(
+            invoice_no=obj.invoice_no
+        ).aggregate(total=Sum('amount'))['total']
+        return float(total) if total else 0.0
+    
+    def get_total_due_amount(self, obj):
+        # ওই ইনভয়েস নম্বরের অধীনে থাকা সব আইটেমের new_due যোগ করা হচ্ছে
+        total_due = StudentPayment.objects.filter(
+            invoice_no=obj.invoice_no
+        ).aggregate(total=Sum('new_due'))['total'] or 0
+        
+        # যেহেতু ডাটাবেসে ভ্যালুগুলো ফ্লোট বা ডেসিমাল হতে পারে, রাউন্ড করে দিচ্ছি
+        return round(float(total_due), 2) if total_due > 0 else 0.0
+    
 class StudentSearchSerializer(serializers.ModelSerializer):
     label = serializers.SerializerMethodField()
     value = serializers.IntegerField(source='id')
@@ -548,3 +634,56 @@ class StudentSearchSerializer(serializers.ModelSerializer):
     def get_label(self, obj):
         std_id = self.get_student_id_no(obj)
         return f"{obj.first_name} - {std_id} ({obj.mobile})"
+
+class InstitutionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Institution
+        # মডেলের সব ফিল্ড ব্যবহার করার জন্য '__all__' দিন
+        fields = '__all__'
+
+class AccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        # আপনার মডেলের ৮টি ফিল্ডই এখানে নিশ্চিত করা হয়েছে
+        fields = [
+            'id', 
+            'account_name', 
+            'account_type', 
+            'bank_name', 
+            'account_number', 
+            'branch', 
+            'opening_balance', 
+            'current_balance', 
+            'is_active'
+        ]
+        
+        # current_balance সাধারণত অটো-ক্যালকুলেটেড হয়, তাই এটি read_only রাখা নিরাপদ
+        read_only_fields = ['id']
+
+class EmployeeProfileSerializer(serializers.ModelSerializer):
+    department_name = serializers.ReadOnlyField(source='department.name')
+    designation_name = serializers.ReadOnlyField(source='designation.name')
+    
+    # এটি এখন প্রোফাইল মডেল থেকেই নাম দেখাবে যদি ইউজার না থাকে
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeProfile
+        fields = '__all__'
+        read_only_fields = ['employee_id', 'user']
+
+    def get_full_name(self, obj):
+        if obj.user:
+            return obj.user.get_full_name()
+        return f"{obj.first_name} {obj.last_name}" if obj.first_name else "Unnamed Employee"
+    
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = '__all__'
+
+class DesignationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Designation
+        fields = '__all__'
+

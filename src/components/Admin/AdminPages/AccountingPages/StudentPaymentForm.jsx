@@ -27,6 +27,26 @@ const StudentPaymentForm = () => {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [tempFee, setTempFee] = useState(null);
   const [selectedFees, setSelectedFees] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState(null);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+        try {
+            const res = await CM.axiosInstance.get(`${domain}/api/accounts/?page_size=1000`);
+            const results = res.data.results || res.data;
+            // শুধু একটিভ অ্যাকাউন্টগুলো ফিল্টার করে দেখাচ্ছি
+            const activeAccounts = results.filter(acc => acc.is_active).map(item => ({
+                value: item.id,
+                label: `${item.account_name} (${item.account_type.toUpperCase()})`
+            }));
+            setAccounts(activeAccounts);
+        } catch (err) {
+            console.error("Failed to load accounts", err);
+        }
+    };
+    fetchAccounts();
+}, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -39,19 +59,26 @@ const StudentPaymentForm = () => {
     fetchCategories();
   }, []);
 
-  useEffect(() => {
-    const fetchFilteredFees = async () => {
-      if (!selectedCategory) { setFeeRates([]); return; }
-      try {
-        setLoadingFees(true);
-        const res = await CM.axiosInstance.get(`${domain}/api/fee-rates/`, {
-          params: { category: selectedCategory.value, page_size: 1000 }
-        });
-        setFeeRates(res.data.results || res.data);
-      } catch (err) { console.error(err); } finally { setLoadingFees(false); }
-    };
-    fetchFilteredFees();
-  }, [selectedCategory]);
+useEffect(() => {
+  const fetchFilteredFees = async () => {
+    try {
+      setLoadingFees(true);
+      // এখানে লজিক চেঞ্জ: ক্যাটাগরি থাকলে ফিল্টার হবে, না থাকলে সব আসবে
+      let url = `${domain}/api/fee-rates/?page_size=1000`;
+      if (selectedCategory) {
+        url += `&category=${selectedCategory.value}`;
+      }
+      
+      const res = await CM.axiosInstance.get(url);
+      setFeeRates(res.data.results || res.data);
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoadingFees(false); 
+    }
+  };
+  fetchFilteredFees();
+}, [selectedCategory]);
 
   const loadStudentOptions = async (inputValue) => {
     if (!inputValue || inputValue.length < 2) return [];
@@ -66,229 +93,76 @@ const StudentPaymentForm = () => {
     setTempFee(null); setSelectedFees([]);
   };
 
-  // --- Invoice Print ---
-const handlePrint = (invoiceNo, student, fees) => {
-  const printWindow = window.open('', '_blank');
-  
-  const qrCanvas = document.getElementById("hidden-qr-canvas");
-  const qrImage = qrCanvas ? qrCanvas.toDataURL("image/png") : "";
 
-  const companyLogo = "https://via.placeholder.com/150x50?text=YOUR+LOGO"; 
-  const companyName = "ABC INTERNATIONAL SCHOOL";
-  const companyAddress = "123 Education Ave, Dhaka, Bangladesh";
-
-  // ক্যালকুলেশন
-  const totalFee = fees.reduce((a, b) => a + (parseFloat(b.oldDue > 0 ? b.oldDue : b.mainFeeAmount) || 0), 0);
-  const totalPaid = fees.reduce((a, b) => a + (parseFloat(b.payingAmount) || 0), 0);
-  const totalDue = fees.reduce((a, b) => a + (parseFloat(b.newDue) || 0), 0);
-
-  const content = `
-    <html>
-      <head>
-        <title>Invoice - ${invoiceNo}</title>
-        <style>
-          body { font-family: 'Segoe UI', sans-serif; color: #333; margin: 0; padding: 20px; line-height: 1.3; }
-          .invoice-box { max-width: 950px; margin: auto; border: 1px solid #eee; padding: 30px; border-radius: 8px; background: #fff; }
-          
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 20px; }
-          .company-info h2 { margin: 0; color: #1e3a8a; font-size: 24px; text-transform: uppercase; }
-          .company-info p { margin: 2px 0; font-size: 12px; color: #666; }
-
-          .meta-section { display: flex; justify-content: space-between; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 6px; }
-          .meta-box p { margin: 3px 0; font-size: 13px; }
-
-          /* ১০ কলামের টেবিল স্টাইল */
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th { background: #1e3a8a; color: white; padding: 8px; text-align: center; font-size: 11px; text-transform: uppercase; border: 1px solid #ddd; }
-          td { padding: 8px; border: 1px solid #eee; text-align: center; font-size: 12px; }
-          .text-left { text-align: left; }
-
-          /* সামারি সেকশন */
-          .summary-wrapper { display: flex; justify-content: flex-end; margin-top: 10px; }
-          .summary-table-box { width: 250px; background: #f1f5f9; padding: 12px; border-radius: 6px; }
-          .summary-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #e2e8f0; }
-          .summary-row:last-child { border-bottom: none; color: #dc2626; font-weight: bold; }
-          .paid-text { color: #059669; font-weight: bold; }
-
-          /* সিগনেচার ও কিউআর লেআউট */
-          .footer-layout { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 50px; text-align: center; }
-          .sig-column { width: 180px; }
-          .sig-line { border-top: 1.5px solid #333; padding-top: 5px; font-weight: bold; font-size: 12px; }
-          .qr-column { width: 110px; }
-          .qr-column img { width: 90px; height: 90px; border: 1px solid #ddd; padding: 3px; background: #fff; }
-          .qr-text { font-size: 9px; color: #64748b; margin-top: 4px; }
-
-          @media print { .invoice-box { border: none; padding: 10px; } }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-box">
-          <div class="header">
-            <div class="logo-area"><img src="${companyLogo}" style="max-width: 140px;"></div>
-            <div class="company-info">
-              <h2>${companyName}</h2>
-              <p>${companyAddress}</p>
-              <p>Web: www.school.com | Email: info@school.com</p>
-            </div>
-          </div>
-
-          <div class="meta-section">
-            <div class="meta-box">
-              <p><b>STUDENT:</b> ${student.first_name}</p>
-              <p><b>ID:</b> #${student.student_id_no}</p>
-              <p><b>PROGRAM:</b> ${student.program || 'N/A'}</p>
-            </div>
-            <div class="meta-box" style="text-align: right;">
-              <p><b>INVOICE NO:</b> ${invoiceNo}</p>
-              <p><b>DATE:</b> ${paymentDate}</p>
-              <p><b>STATUS:</b> <span style="color: green; font-weight: bold;">PAID</span></p>
-            </div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th class="text-left">Category</th>
-                <th class="text-left">Head Name</th>
-                <th>Main Amount</th>
-                <th>Contract</th>
-                <th>Prev Paid</th>
-                <th>Due</th>
-                <th>Discount</th>
-                <th>Type</th>
-                <th>Paying</th>
-                <th>New Due</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${fees.map(f => `
-                <tr>
-                  <td class="text-left">${f.category_name}</td>
-                  <td class="text-left"><b>${f.head_name}</b></td>
-                  <td>${parseFloat(f.mainFeeAmount).toFixed(2)}</td>
-                  <td>${f.contractAmount > 0 ? parseFloat(f.contractAmount).toFixed(2) : 'None'}</td>
-                  <td>${parseFloat(f.totalPaidPrev).toFixed(2)}</td>
-                  <td>${parseFloat(f.oldDue).toFixed(2)}</td>
-                  <td>${parseFloat(f.actualDiscount).toFixed(2)}</td>
-                  <td>${f.paymentType === "2" ? "Full" : "Partial"}</td>
-                  <td style="font-weight: bold;">${parseFloat(f.payingAmount).toFixed(2)}</td>
-                  <td style="color: red; font-weight: bold;">${parseFloat(f.newDue).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-
-          <div class="summary-wrapper">
-            <div class="summary-table-box">
-              <div class="summary-row">
-                <span>Total Fee:</span>
-                <span>${totalFee.toFixed(2)} TK</span>
-              </div>
-              <div class="summary-row paid-text">
-                <span>Paid Amount:</span>
-                <span>${totalPaid.toFixed(2)} TK</span>
-              </div>
-              <div class="summary-row">
-                <span>Total Due:</span>
-                <span>${totalDue.toFixed(2)} TK</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="footer-layout">
-            <div class="sig-column">
-              <div class="sig-line">Student Signature</div>
-            </div>
-            
-            <div class="qr-column">
-              <img src="${qrImage}" alt="QR Code">
-              <div class="qr-text">Scan to Verify</div>
-            </div>
-
-            <div class="sig-column">
-              <div class="sig-line">Authorized Signature</div>
-            </div>
-          </div>
-
-          <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #eee; padding-top: 10px;">
-            This is a system-generated money receipt and does not require a physical seal.
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-
-  printWindow.document.write(content);
-  printWindow.document.close();
-  setTimeout(() => { printWindow.print(); }, 500);
-};
   // --- FIXED CONTRACT LOGIC BLOCK ---
-  const handleAddButtonClick = async () => {
+ const handleAddButtonClick = async () => {
     if (!selectedStudent || !tempFee) return;
     try {
-      const feeId = String(tempFee.value); 
-      const currentStudentId = String(selectedStudent.value);
+        const feeId = String(tempFee.value); 
+        const currentStudentId = String(selectedStudent.value);
 
-      // ১. লাস্ট পেমেন্ট চেক করা
-      const paymentsRes = await CM.axiosInstance.get(`${domain}/api/student-payments/`, {
-        params: { student: currentStudentId, page_size: 1000 }
-      });
-      const allPayments = paymentsRes.data.results || paymentsRes.data || [];
-      const lastPayment = allPayments
-        .filter(p => String(p.fees?.id || p.fees) === feeId)
-        .sort((a, b) => b.id - a.id)[0];
+        // ১. লাস্ট পেমেন্ট চেক করা
+        const paymentsRes = await CM.axiosInstance.get(`${domain}/api/student-payments/`, {
+            params: { student: currentStudentId, page_size: 1000 }
+        });
+        const allPayments = paymentsRes.data.results || paymentsRes.data || [];
+        const lastPayment = allPayments
+            .filter(p => String(p.fees?.id || p.fees) === feeId)
+            .sort((a, b) => b.id - a.id)[0];
 
-      const lastTotalPaid = lastPayment ? (parseFloat(lastPayment.total_paid) || 0) : 0;
-      
-      // ২. পেমেন্ট কন্টাক্ট চেক করা (Crucial Fix)
-      const contractRes = await CM.axiosInstance.get(`${domain}/api/payment-contacts/by-student/${currentStudentId}/`);
-      const contracts = contractRes.data || [];
-      const specificContract = contracts.find(c => String(c.fees?.id || c.fees) === feeId);
+        const lastTotalPaid = lastPayment ? (parseFloat(lastPayment.total_paid) || 0) : 0;
+        
+        // ২. পেমেন্ট কন্টাক্ট চেক করা
+        const contractRes = await CM.axiosInstance.get(`${domain}/api/payment-contacts/by-student/${currentStudentId}/`);
+        const contracts = contractRes.data || [];
+        const specificContract = contracts.find(c => String(c.fees?.id || c.fees) === feeId);
 
-      const hasContract = !!specificContract;
-      const foundFee = feeRates.find(f => String(f.id) === feeId);
-      const mainFeeAmount = foundFee ? parseFloat(foundFee.amount) : 0;
-      
-      let currentDue = 0;
-      let initialPayingAmount = 0;
+        const hasContract = !!specificContract;
+        const foundFee = feeRates.find(f => String(f.id) === feeId);
+        const mainFeeAmount = foundFee ? parseFloat(foundFee.amount) : 0;
+        
+        // --- ক্যাটাগরি নেম লজিক ফিক্স ---
+        // যদি ড্রপডাউন থেকে ক্যাটাগরি সিলেক্ট থাকে তবে সেটি নেবে, 
+        // নাহলে ফি হেড এর ভেতর থেকে ক্যাটাগরি নেম খুঁজে বের করবে।
+        const categoryName = selectedCategory?.label || foundFee?.category_name || "General";
 
-      // ৩. আপনার অরিজিনাল প্রায়োরিটি লজিক
-      if (hasContract) {
-        // যদি কন্টাক্ট থাকে: কন্টাক্ট অ্যামাউন্ট - আগের মোট জমা
-        const contractAmount = parseFloat(specificContract.amount) || 0;
-        currentDue = Math.max(0, contractAmount - lastTotalPaid);
-        initialPayingAmount = currentDue; 
-      } 
-      else if (lastPayment && parseFloat(lastPayment.new_due) > 0) {
-        // যদি কন্টাক্ট না থাকে কিন্তু আগের ডিউ থাকে
-        currentDue = parseFloat(lastPayment.new_due);
-        initialPayingAmount = currentDue;
-      }
-      else {
-        // নতুন পেমেন্ট
-        currentDue = 0;
-        initialPayingAmount = mainFeeAmount;
-      }
+        let currentDue = 0;
+        let initialPayingAmount = 0;
 
-      setSelectedFees([...selectedFees, {
-        feeId: feeId,
-        head_name: tempFee.label.split(' (')[0],
-        category_name: selectedCategory?.label,
-        mainFeeAmount,
-        contractAmount: hasContract ? parseFloat(specificContract.amount) : 0,
-        totalPaidPrev: lastTotalPaid,
-        oldDue: currentDue, 
-        hasContract,
-        paymentType: "2",
-        discountType: "1",
-        discountValue: 0,
-        actualDiscount: 0,
-        payingAmount: initialPayingAmount, 
-        newDue: 0
-      }]);
-      setTempFee(null);
+        // ৩. আপনার অরিজিনাল প্রায়োরিটি লজিক
+        if (hasContract) {
+            const contractAmount = parseFloat(specificContract.amount) || 0;
+            currentDue = Math.max(0, contractAmount - lastTotalPaid);
+            initialPayingAmount = currentDue; 
+        } 
+        else if (lastPayment && parseFloat(lastPayment.new_due) > 0) {
+            currentDue = parseFloat(lastPayment.new_due);
+            initialPayingAmount = currentDue;
+        }
+        else {
+            currentDue = 0;
+            initialPayingAmount = mainFeeAmount;
+        }
+
+        setSelectedFees([...selectedFees, {
+            feeId: feeId,
+            head_name: tempFee.label.split(' (')[0],
+            category_name: categoryName, // এখানে ফিক্সড ভ্যালু বসবে
+            mainFeeAmount,
+            contractAmount: hasContract ? parseFloat(specificContract.amount) : 0,
+            totalPaidPrev: lastTotalPaid,
+            oldDue: currentDue, 
+            hasContract,
+            paymentType: "2",
+            discountType: "1",
+            discountValue: 0,
+            actualDiscount: 0,
+            payingAmount: initialPayingAmount, 
+            newDue: 0
+        }]);
+        setTempFee(null);
     } catch (err) { console.error("Add Error:", err); }
-  };
+};
 
   const updateRow = (index, field, value) => {
     const updated = [...selectedFees];
@@ -307,27 +181,53 @@ const handlePrint = (invoiceNo, student, fees) => {
     setSelectedFees(updated);
   };
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
+    // অ্যাকাউন্ট সিলেক্ট না করলে অ্যালার্ট দেবে
+    if (!selectedAccount) {
+        return CM.Swal.fire("Incomplete!", "Please select a receiving account.", "warning");
+    }
+
     setIsSaving(true);
     try {
-      let finalInvoiceNo = "";
-      for (let i = 0; i < selectedFees.length; i++) {
-        const fee = selectedFees[i];
-        const res = await CM.axiosInstance.post(`${domain}/api/student-payments/`, {
-          student: selectedStudent.value, payment_date: paymentDate, fees: fee.feeId,
-          invoice_no: i === 0 ? "" : finalInvoiceNo, payment_type: fee.paymentType,
-          discount_type: fee.discountType, discount_value: fee.discountValue,
-          old_due: fee.oldDue, amount: fee.payingAmount,
-          total_paid: (parseFloat(fee.totalPaidPrev) || 0) + (parseFloat(fee.payingAmount) || 0),
-          new_due: fee.newDue, payment_approved: true
+        let finalInvoiceNo = "";
+        for (let i = 0; i < selectedFees.length; i++) {
+            const fee = selectedFees[i];
+            const res = await CM.axiosInstance.post(`${domain}/api/student-payments/`, {
+                student: selectedStudent.value,
+                payment_date: paymentDate,
+                fees: fee.feeId,
+                invoice_no: i === 0 ? "" : finalInvoiceNo,
+                
+                // --- New Fields ---
+                account: selectedAccount.value, 
+                // collected_by ব্যাকএন্ডে request.user থেকে অটো সেট হয়ে যাবে
+                
+                paymentType: fee.paymentType, 
+                discount_type: fee.discountType,
+                discount_value: fee.discountValue,
+                old_due: fee.oldDue,
+                amount: fee.payingAmount,
+                total_paid: (parseFloat(fee.totalPaidPrev) || 0) + (parseFloat(fee.payingAmount) || 0),
+                new_due: fee.newDue,
+            });
+            if (i === 0) finalInvoiceNo = res.data.invoice_no;
+        }
+
+        await CM.Swal.fire({
+            title: "Success!",
+            text: `Invoice ${finalInvoiceNo} created. Balance will update after approval.`,
+            icon: "success",
+            confirmButtonColor: "#3b82f6"
         });
-        if (i === 0) finalInvoiceNo = res.data.invoice_no;
-      }
-      await CM.Swal.fire({ title: "Success", text: `Payment Recorded: ${finalInvoiceNo}`, icon: "success" });
-      handlePrint(finalInvoiceNo, selectedStudent, selectedFees);
-      navigate('/student_fee_list');
-    } catch (err) { console.error(err); } finally { setIsSaving(false); }
-  };
+
+        navigate('/student_fee_list');
+    } catch (err) {
+        console.error("Submit Error:", err);
+        CM.Swal.fire("Error", "Could not save payment.", "error");
+    } finally {
+        setIsSaving(false);
+    }
+};
 
   return (
     <div className="container-fluid mt-2 pb-5">
@@ -348,7 +248,31 @@ const handlePrint = (invoiceNo, student, fees) => {
                     <div className="col-md-4 border-start ps-3"><span className="text-muted d-block">PROGRAM</span>{selectedStudent.program || 'N/A'}</div>
                     <div className="col-md-3 border-start ps-3"><span className="text-muted d-block">MOBILE</span>{selectedStudent.mobile}</div>
                   </div>
-                  <button className="btn btn-sm btn-light text-danger position-absolute" onClick={handleReset} style={{ right: '-5px', top: '-5px', borderRadius: '50%' }}><i className="bi bi-x-lg"></i></button>
+                  <button 
+  className="btn btn-sm btn-light text-danger position-absolute d-flex align-items-center justify-content-center shadow-sm" 
+  onClick={handleReset} 
+  style={{ 
+    right: '-10px', 
+    top: '-10px', 
+    borderRadius: '50%', 
+    width: '28px', 
+    height: '28px', 
+    padding: '0',
+    border: '1px solid #ffc107', // হালকা বর্ডার দিলে বাটনটা ফুটে উঠবে
+    zIndex: '10'
+  }}
+  title="Reset Student"
+>
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="16" 
+    height="16" 
+    fill="currentColor" 
+    viewBox="0 0 16 16"
+  >
+    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+  </svg>
+</button>
                 </div>
               )}
             </div>
@@ -357,13 +281,70 @@ const handlePrint = (invoiceNo, student, fees) => {
               <input type="date" className="form-control" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
             </div>
           </div>
+          <div className="row g-2 md-3 align-items-center mb-2">
+            {/* Receiving Account Selection */}
+            
+                <div className="col-md-4">
+                    <label className="text-muted mb-1 d-block fw-bold small">RECEIVING ACCOUNT *</label>
+                    <Select 
+                        options={accounts} 
+                        value={selectedAccount} 
+                        onChange={setSelectedAccount} 
+                        placeholder="Search & Select Account (Cash/Bank)..." 
+                        styles={compactStyles}
+                        isClearable
+                    />
+                
+            </div>
+          </div>
 
           {/* Fee Selection */}
-          <div className="row g-2 mb-3 p-3 bg-light border rounded-4 border-dashed">
-            <div className="col-md-5"><Select options={categories} styles={compactStyles} onChange={(s) => setSelectedCategory(s)} placeholder="Category" isClearable /></div>
-            <div className="col-md-5"><Select isLoading={loadingFees} options={feeRates.map(f => ({ value: f.id, label: `${f.head_name} (${f.amount} TK)` }))} onChange={setTempFee} value={tempFee} isDisabled={!selectedCategory} placeholder="Select Fee Head" styles={compactStyles} /></div>
-            <div className="col-md-2"><button className="btn btn-primary w-100 fw-bold shadow-sm" style={{ height: '40px' }} onClick={handleAddButtonClick} disabled={!tempFee}>ADD FEE</button></div>
-          </div>
+          <div className="row g-2 mb-3 align-items-center">
+                    {/* First Select: Category */}
+                    <div className="col-md-5">
+                      <Select
+                      options={categories}
+                      styles={compactStyles}
+                      onChange={(s) => {
+                        setSelectedCategory(s); // ক্যাটাগরি সেট হবে
+                        setTempFee(null);       // ক্যাটাগরি বদলালে আগের হেড ক্লিয়ার হবে
+                      }}
+                      value={selectedCategory} // value টা অবশ্যই দিয়ে দেবেন
+                      placeholder="Category"
+                      isClearable
+                      menuPortalTarget={document.body}
+                      menuPosition={'fixed'}
+                    />
+                    </div>
+
+                    {/* Second Select: Fee Head */}
+                    <div className="col-md-5">
+                     <Select
+                      isLoading={loadingFees}
+                      options={feeRates.map(f => ({ value: f.id, label: `${f.head_name} (${f.amount} TK)` }))}
+                      onChange={setTempFee}
+                      value={tempFee}
+                      // isDisabled={!selectedCategory}  <-- এই লাইনটি পুরোপুরি কেটে দিন
+                      placeholder="Select Fee Head"
+                      styles={compactStyles}
+                      isClearable // এটি যোগ করলে ইউজার হেড ক্লিয়ার করতে পারবে
+                      menuPortalTarget={document.body}
+                      menuPosition={'fixed'}
+                    />
+                    </div>
+
+                    {/* Add Button */}
+                    <div className="col-md-2">
+                      <button
+                        className="btn btn-primary w-100 fw-bold shadow-sm"
+                        style={{ height: '40px' }}
+                        onClick={handleAddButtonClick}
+                        disabled={!tempFee}
+                      >
+                        ADD FEE
+                      </button>
+                    </div>
+                  </div>
 
           {/* Table with 11 Columns */}
           <div className="table-responsive shadow-sm rounded-4 border">
@@ -394,17 +375,64 @@ const handlePrint = (invoiceNo, student, fees) => {
                     <td className="text-primary fw-bold">{fee.oldDue}</td>
                     <td>
                         {!fee.hasContract && (
-                            <div className="input-group input-group-sm">
-                                <select className="form-select border-0 bg-light" value={fee.discountType} onChange={(e) => updateRow(index, 'discountType', e.target.value)}><option value="1">৳</option><option value="2">%</option></select>
-                                <input type="number" className="form-control border-0 bg-light" value={fee.discountValue || ''} onChange={(e) => updateRow(index, 'discountValue', e.target.value)} />
-                            </div>
+                            <div className="input-group input-group-sm shadow-sm rounded-2 overflow-hidden" style={{ width: '130px' }}>
+    {/* Select box - ছোট সাইজ (flex: 1) */}
+   <select 
+    className="form-select border-0 bg-light fw-bold text-primary shadow-none" 
+    style={{ 
+        flex: '0 0 55px',          // উইডথ কিছুটা কমিয়ে ফিট করা হয়েছে
+        paddingLeft: '4px',        // সামান্য প্যাডিং যাতে একদম বর্ডারে লেগে না যায়
+        paddingRight: '2px',       // অ্যারোর জন্য ডানদিকের প্যাডিং
+        backgroundImage: 'none',    // বুটস্ট্র্যাপের বড় অ্যারো রিমুভ
+        fontSize: '11px',
+        cursor: 'pointer',
+        appearance: 'none',        // ডিফল্ট স্টাইল পুরোপুরি রিমুভ
+        textAlign: 'center',       // লেখা এবং সিম্বল মাঝখানে রাখার জন্য
+    }} 
+    value={fee.discountType} 
+    onChange={(e) => updateRow(index, 'discountType', e.target.value)}
+>
+    {/* এখানে সিম্বলটি টেক্সটের সাথে যুক্ত করে দেওয়া হয়েছে */}
+    <option value="1">TK ▾</option>
+    <option value="2">% ▾</option>
+</select>
+
+    {/* Input box - বড় সাইজ (flex: 3) */}
+    <input 
+        type="number" 
+        className="form-control border-0 bg-white" 
+        style={{ flex: '2' }}
+        placeholder="0"
+        value={fee.discountValue || ''} 
+        onChange={(e) => updateRow(index, 'discountValue', e.target.value)} 
+    />
+</div>
                         )}
                     </td>
                     <td><select className="form-select form-select-sm border-0 bg-light" value={fee.paymentType} onChange={(e) => updateRow(index, 'paymentType', e.target.value)}><option value="1">Partial</option><option value="2">Full</option></select></td>
                     <td><input type="number" className="form-control form-control-sm text-center fw-bold" value={fee.payingAmount || ''} disabled={fee.paymentType === "2"} onChange={(e) => updateRow(index, 'payingAmount', e.target.value)} style={{ width: '80px', margin: 'auto' }} /></td>
                     <td className="fw-bold text-danger">{fee.newDue}</td>
-                    <td><button className="btn btn-link text-danger p-0" onClick={() => setSelectedFees(selectedFees.filter((_, i) => i !== index))}><i className="bi bi-trash3-fill"></i></button></td>
-                  </tr>
+                    <td className="text-center">
+  <button 
+    className="btn btn-link p-0 border-0" 
+    style={{ color: '#dc3545', transition: 'transform 0.2s' }}
+    onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+    onClick={() => setSelectedFees(selectedFees.filter((_, i) => i !== index))}
+    title="Remove Fee"
+  >
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="20" 
+      height="20" 
+      fill="currentColor" 
+      viewBox="0 0 16 16"
+    >
+      <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5a.5.5 0 0 1 .471-.532zm3.016.53a.5.5 0 0 1 .998.06l-.5 8.5a.5.5 0 1 1-.998-.06zm3.016-.53a.5.5 0 0 1 .471.532l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47z"/>
+    </svg>
+  </button>
+</td>
+                   </tr>
                 ))}
               </tbody>
             </table>

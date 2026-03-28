@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { domain } from "../../../env";
+import { domain } from "../../../../env";
 
 const UpdateDivisionPage = () => {
   const { studentId } = useParams();

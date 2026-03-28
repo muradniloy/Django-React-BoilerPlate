@@ -20,6 +20,11 @@ admin.site.register(PaymentHead)
 admin.site.register(MainHead)
 admin.site.register(FeeRate)
 admin.site.register(StudentPayment)
+admin.site.register(Institution)
+admin.site.register(Designation)
+admin.site.register(Department)
+admin.site.register(EmployeeProfile)
+
 @admin.register(PaymentContact)
 class PaymentContactAdmin(admin.ModelAdmin):
     # লিস্ট ভিউতে যা যা দেখাবে (কলামগুলো সাজানো)

@@ -3,12 +3,14 @@ import "../../../CSS/dashboard.css";
 import { Link } from "react-router-dom";
 
 const sideMenus = [
-  { title: "Users", icon: "/icons/users.png",  },
+  { title: "Users", icon: "/icons/users.png",  link:'/dashboard/settings/users'},
   { title: "Products", icon: "/icons/product.png" },
   { title: "Orders", icon: "/icons/order.png" },
   { title: "Accounting Setting", icon: "/icons/reports.png", link:'/Accouting/Settings'},
   { title: "Address Setting", icon: "/icons/address_setting.png", link:'/Address/Settings'},
   { title: "Program Setting", icon: "/icons/product.png", link:'/Program/Settings'},
+  { title: "Institution Setting", icon: "/icons/product.png", link:'/Institution/Settings'},
+  { title: "Website Setting", icon: "/icons/product.png", link:'/website/setting'},
   { title: "Logs", icon: "/icons/audit.png", link: '/dashboard/logs' },
 ];
 

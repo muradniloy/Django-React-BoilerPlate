@@ -6,12 +6,14 @@ from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
 from PIL import Image
 import io
+from django.core.validators import RegexValidator
 from django.core.files.base import ContentFile
 from django.db import models
 from decimal import Decimal
 from django.core.validators import MinValueValidator
 import datetime
 from django.utils import timezone
+from Accounts.models import Account
 
 
 register(User, inherit=True)
@@ -112,6 +114,14 @@ class StudentPersonal(models.Model):
     guardian_name=models.CharField(max_length=100, blank=True, null=True)
     guardian_mobile=models.IntegerField(null=True, blank=True)
     active = models.BooleanField(default=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    user = models.OneToOneField(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='student_profile',
+        null=True, blank=True
+    )
     history = HistoricalRecords()
 
     
@@ -148,6 +158,8 @@ class EducationQualification(models.Model):
     result = models.FloatField(null=True, blank=True)
     board = models.ForeignKey(EducationBoard, null=True, on_delete=models.CASCADE)
     passing_year = models.IntegerField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
     history = HistoricalRecords()
     
     # নতুন ফিল্ড: ফাইল আপলোড (PDF এবং Image সমর্থিত)
@@ -233,6 +245,8 @@ class StudentAddress(models.Model):
     Present_Upazilla = models.ForeignKey(Upazilla, on_delete=models.CASCADE, related_name='Present_Upazilla', null=True)
     Present_Post_Office = models.CharField(max_length=100, null=True, verbose_name='Present_Post_Office')
     Present_Village = models.CharField(max_length=100, null=True, verbose_name='Presemt_Village')
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
     history = HistoricalRecords()
 
     def __str__(self):
@@ -266,6 +280,8 @@ class StudentAdmission(models.Model):
     merit_score = models.IntegerField(null=True)
     merit_position = models.IntegerField(null=True)
     approved = models.BooleanField(default=False, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
     history = HistoricalRecords()
 
     def save(self, *args, **kwargs):
@@ -357,7 +373,8 @@ class FeeRate(models.Model):
     amount=models.DecimalField(max_digits=11, decimal_places=2)
     opening_date=models.DateField(blank=True, null=True)
     history = HistoricalRecords()
-    
+
+
 class PaymentContact(models.Model):
     # চয়েসসমূহ
     PAYMENT_TYPE_CHOICES = [('1', 'One Time'), ('2', 'Monthly'), ('4', 'Yearly'), ('7', 'Anytime')]
@@ -381,7 +398,7 @@ class PaymentContact(models.Model):
     # ক্যালকুলেটেড ফিল্ডস
     original_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-
+    history = HistoricalRecords()
     def save(self, *args, **kwargs):
         # ১. Safety Check: যদি fees না থাকে তবে ক্যালকুলেশন স্কিপ করা
         if not self.fees:
@@ -418,6 +435,7 @@ class PaymentContact(models.Model):
         verbose_name_plural = "Payment Contacts"
         ordering = ['-contact_date', '-id']
 
+
 class StudentPayment(models.Model):
     DISCOUNT_TYPE = [("1", "Flat Amount"), ("2", "Percentage (%)")]
     Payment_Type = [("1","Partial"), ("2","Full Payment")]
@@ -432,27 +450,34 @@ class StudentPayment(models.Model):
     new_due = models.PositiveIntegerField(null=True)
     amount = models.PositiveIntegerField(null=True) 
     total_paid = models.PositiveIntegerField(null=True) 
+    
+    # --- নতুন যুক্ত করা ফিল্ডসমূহ ---
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, null=True, blank=True, related_name='payments')
+    collected_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='collected_by_user')
+    
     payment_approved = models.BooleanField(default=False, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_by_user')
+    approval_date = models.DateTimeField(null=True, blank=True) # এখানে Date + Time একসাথেই থাকবে
+    # ----------------------------
+
     invoice_no = models.CharField(max_length=50, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
     history = HistoricalRecords()
 
     def save(self, *args, **kwargs):
+        # অটোমেটিক ইনভয়েস জেনারেশন লজিক (আপনার অরিজিনাল কোড)
         if not self.invoice_no:
-            # ২. timezone.now() ব্যবহার করুন যা নিরাপদ
             now = timezone.now() 
-            
-            # সাল এবং মাস বের করা (যেমন: ২৬০৩)
             year_month = now.strftime('%y%m')
             prefix = f'INV-{year_month}'
 
-            # ওই মাসের সর্বশেষ ইনভয়েসটি খুঁজে বের করা
             last_invoice = StudentPayment.objects.filter(
                 invoice_no__startswith=prefix
             ).order_by('-invoice_no').first()
 
             if last_invoice:
                 try:
-                    # শেষ ৪ ডিজিট নিয়ে ১ যোগ করা
                     last_number = int(last_invoice.invoice_no[-4:])
                     new_number = format(last_number + 1, '04d')
                 except (ValueError, TypeError):
@@ -462,7 +487,153 @@ class StudentPayment(models.Model):
 
             self.invoice_no = f'{prefix}{new_number}'
         
+        # অ্যাপ্রুভালের সময় অটোমেটিক ডেট-টাইম সেট করার লজিক
+        if self.payment_approved and not self.approval_date:
+            self.approval_date = timezone.now()
+
         super(StudentPayment, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.student.first_name if self.student else 'N/A'} - {self.invoice_no}"
+        student_name = self.student.first_name if self.student else 'N/A'
+        return f"{student_name} - {self.invoice_no}"
+    
+class Institution(models.Model):
+    # Basic Information
+    logo = models.ImageField(upload_to='institution_logos/', null=True, blank=True)
+    name = models.CharField(max_length=255, verbose_name="Institution Name")
+    slogan = models.CharField(max_length=255, blank=True, null=True)
+    logo = models.ImageField(upload_to='institution/logos/', blank=True, null=True)
+    
+    # Contact Information
+    address = models.TextField()
+    email = models.EmailField(unique=True)
+    telephone = models.CharField(max_length=20, blank=True, null=True)
+    
+    # Mobile Number with validation
+    phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+8802000000'. Up to 15 digits allowed.")
+    mobile = models.CharField(validators=[phone_regex], max_length=17, blank=True)
+    
+    # Web & Social Media
+    website = models.CharField(blank=True, null=True)
+    fb_link = models.URLField(verbose_name="Facebook Page Link", blank=True, null=True)
+    yt_link = models.URLField(verbose_name="YouTube Channel Link", blank=True, null=True)
+    linkedin_link = models.URLField(blank=True, null=True)
+    
+    # Location & Maps
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    google_map_embed_url = models.TextField(
+    help_text="Google Map Embed Iframe Link", # help_coords এর পরিবর্তে help_text হবে
+    blank=True, 
+    null=True
+    )
+    # Additional Useful Fields
+    eiin_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="EIIN Number")
+    established_year = models.IntegerField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+    history = HistoricalRecords()
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name_plural = "Institution Profile"
+
+class Department(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    history = HistoricalRecords()
+
+    def __str__(self):
+        return self.name
+
+class Designation(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    history = HistoricalRecords()
+
+    def __str__(self):
+        return self.name
+    
+class EmployeeProfile(models.Model):
+    GENDER_CHOICES = [
+        ("m", "Male"),
+        ("f", "Female"),
+        ("o", "Others"),
+    ]
+
+    # ১. ইউজার এবং বেসিক আইডি
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='employee_profile')
+    employee_id = models.CharField(max_length=20, unique=True)
+    photo = models.ImageField(upload_to='employee_photos/', blank=True, null=True)
+    first_name = models.CharField(max_length=100, null=True, blank=True)
+    last_name = models.CharField(max_length=100, null=True, blank=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
+    
+    # ২. অফিসিয়াল তথ্য (Foreign Keys)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
+    designation = models.ForeignKey(Designation, on_delete=models.SET_NULL, null=True, blank=True)
+    joining_date = models.DateField(null=True, blank=True)
+    
+    # ৩. ব্যক্তিগত তথ্য (আপনার StudentPersonal মডেলের ফিল্ডগুলোর সাথে মিল রেখে)
+    first_name = models.CharField(max_length=100, null=True, blank=True)
+    last_name = models.CharField(max_length=100, null=True, blank=True)
+    fathers_name = models.CharField(max_length=100, null=True, blank=True)
+    mothers_name = models.CharField(max_length=100, null=True, blank=True)
+    mobile = models.CharField(max_length=15, null=True, blank=True)
+    email=models.EmailField(null=True, blank=True)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, default="m")
+    religion = models.ForeignKey('Religion', on_delete=models.SET_NULL, null=True) # আপনার Religion মডেল
+    date_of_birth = models.DateField(blank=True, null=True)
+    nid_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    
+    # ৪. ঠিকানা (আপনার Location মডেলগুলো ব্যবহার করে)
+    present_division = models.ForeignKey(Division, on_delete=models.SET_NULL, null=True, related_name='emp_present_div')
+    present_district = models.ForeignKey(District, on_delete=models.SET_NULL, null=True, related_name='emp_present_dist')
+    present_upazilla = models.ForeignKey(Upazilla, on_delete=models.SET_NULL, null=True, related_name='emp_present_upz')
+    present_address_details = models.CharField(max_length=255, null=True, blank=True, verbose_name="Village/House")
+
+    permanent_division = models.ForeignKey(Division, on_delete=models.SET_NULL, null=True, related_name='emp_perm_div')
+    permanent_district = models.ForeignKey(District, on_delete=models.SET_NULL, null=True, related_name='emp_perm_dist')
+    permanent_upazilla = models.ForeignKey(Upazilla, on_delete=models.SET_NULL, null=True, related_name='emp_perm_upz')
+    permanent_address_details = models.CharField(max_length=255, null=True, blank=True)
+
+    # ৫. অন্যান্য
+    about = models.TextField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    history = HistoricalRecords()
+
+    def save(self, *args, **kwargs):
+        if not self.employee_id:
+            dept_name = self.department.name.strip()
+            words = dept_name.split()
+
+            # প্রিফিক্স লজিক: ২ শব্দ হলে প্রতিটির প্রথম অক্ষর, ১ শব্দ হলে প্রথম ৩ অক্ষর
+            if len(words) >= 2:
+                prefix = "".join([word[0].upper() for word in words[:2]]) # যেমন: IT
+            else:
+                prefix = dept_name[:3].upper() # যেমন: INF
+
+            # ওই নির্দিষ্ট প্রিফিক্সের সর্বশেষ আইডি খুঁজে বের করা
+            last_emp = EmployeeProfile.objects.filter(employee_id__startswith=f"{prefix}-").order_by('-employee_id').first()
+            
+            if last_emp:
+                # আইডি থেকে নাম্বার অংশ আলাদা করা (যেমন: INF-00005 থেকে 5 বের করা)
+                try:
+                    last_id_serial = int(last_emp.employee_id.split('-')[-1])
+                    new_id_serial = last_id_serial + 1
+                except (ValueError, IndexError):
+                    new_id_serial = 1
+            else:
+                new_id_serial = 1
+
+            # ফাইনাল আইডি ফরম্যাট: INF-00001
+            self.employee_id = f"{prefix}-{new_id_serial:05d}"
+            
+        super(EmployeeProfile, self).save(*args, **kwargs)
+
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} - {self.employee_id}"

@@ -26,6 +26,8 @@ INSTALLED_APPS = [
     'simple_history',
     'django_filters',
     'MyShop',
+    'Accounts',
+    'Website',
 ]
 
 MIDDLEWARE = [
@@ -63,8 +65,12 @@ WSGI_APPLICATION = 'main.wsgi.application'
 # Database - ✅ Apnar ager SQLite setting restore kora holo
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'react_project',          # ডাটাবেসের নাম
+        'USER': 'postgres',    # ডিফল্ট ইউজার সাধারণত 'postgres'
+        'PASSWORD': '12345',      # আপনার সেট করা পাসওয়ার্ড
+        'HOST': 'localhost',             # অথবা আপনার ডাটাবেস হোস্টের IP
+        'PORT': '5432',                  # PostgreSQL এর ডিফল্ট পোর্ট
     }
 }
 
@@ -74,6 +80,14 @@ TIME_ZONE = 'Asia/Dhaka'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
+
+# settings.py
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'n.s.murad123@gmail.com' # আপনার জিমেইল
+EMAIL_HOST_PASSWORD = 'qkrh qbde porc neuk' # জিমেইল অ্যাপ পাসওয়ার্ড (সাধারণ পাসওয়ার্ড নয়)
 
 # Static & Media files - ✅ Static path thik kora holo
 STATIC_URL = '/static/'

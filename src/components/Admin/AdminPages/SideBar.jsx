@@ -10,6 +10,7 @@ import { axiosInstance } from "../../../componentExporter";
 const sideMenus = [
   { title: "Dashboard", icon: "/icons/dashboard.png", link: "/dashboard" },
   { title: "Student List", icon: "/icons/users.png", link: "/dashboard/students" },
+  { title: "Employee List", icon: "/icons/users.png", link: "/dashboard/employees" },
   { title: "Accounting", icon: "/icons/accounting.png", link: "/dashboard/accounting" },
   { title: "Reports", icon: "/icons/reports.png", link: "/dashboard/reports" },
   { title: "Settings", icon: "/icons/settings.png", link: "/dashboard/settings", adminOnly: true },
