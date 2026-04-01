@@ -12,6 +12,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework.decorators import action, authentication_classes, permission_classes
 from django.core.exceptions import ValidationError
 from rest_framework import generics, mixins, viewsets, views, status, permissions, filters
+from django.contrib.auth import update_session_auth_hash
 from rest_framework.response import Response
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
@@ -392,6 +393,48 @@ class SessionViewSet(viewsets.ModelViewSet):
 
 
 
+@method_decorator(csrf_exempt, name='dispatch') # ✅ To avoid 401 CSRF issue
+class ChangePasswordView(APIView):
+    # Only authenticated users can change password
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        old_password = request.data.get('oldPassword')
+        new_password = request.data.get('newPassword')
+
+        # 1. Verify Current Password
+        if not user.check_password(old_password):
+            return Response(
+                {"error": "Current password is incorrect!"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Update to New Password
+        try:
+            if len(new_password) < 6:
+                return Response(
+                    {"error": "Password must be at least 6 characters."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            user.set_password(new_password)
+            user.save()
+
+            # Maintain session so user doesn't get logged out
+            update_session_auth_hash(request, user)
+
+            return Response(
+                {"success": "Password updated successfully!"}, 
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            return Response(
+                {"error": "An internal error occurred."}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 @method_decorator(csrf_exempt, name='dispatch')
 class SignUpView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny] 
@@ -546,6 +589,42 @@ class LogoutView(APIView):
         response.delete_cookie('csrftoken')
         return response
 
+
+class UserProfileCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        data = {
+            "is_profile_complete": user.is_profile_complete, # আপনার User মডেলে এই ফিল্ডটি থাকতে হবে
+            "user_type": user.user_type, # Student or Employee
+            "initial_data": {}
+        }
+
+        if user.user_type == 'Student':
+            # StudentPersonal মডেল থেকে ডাটা নিয়ে আসা
+            try:
+                student = user.student_profile # Related Name
+                data["initial_data"] = {
+                    "first_name": student.first_name,
+                    "last_name": student.last_name,
+                    "phone": student.phone_number,
+                }
+            except:
+                pass
+        
+        elif user.user_type == 'Employee':
+            # EmployeeProfile থেকে ডাটা নিয়ে আসা
+            try:
+                employee = user.employee_profile
+                data["initial_data"] = {
+                    "designation": employee.designation,
+                    "department": employee.department,
+                }
+            except:
+                pass
+
+        return Response(data)
 
 # কাস্টম ফিল্টার ক্লাস
 class FeeRateFilter(django_filters.FilterSet):
@@ -1050,11 +1129,11 @@ class AccountViewSet(viewsets.ModelViewSet):
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
-    queryset = Department.objects.all()
+    queryset = Department.objects.all().order_by("order")
     serializer_class = DepartmentSerializer
 
 class DesignationViewSet(viewsets.ModelViewSet):
-    queryset = Designation.objects.all()
+    queryset = Designation.objects.all().order_by("order")
     serializer_class = DesignationSerializer
 
 
@@ -1068,7 +1147,7 @@ class EmployeeListView(APIView):
             models.Q(employee_id__icontains=search_query) |
             models.Q(user__first_name__icontains=search_query) |
             models.Q(mobile__icontains=search_query)
-        ).order_by('-created_at')
+        ).order_by('department__order')
         
         serializer = EmployeeProfileSerializer(employees, many=True)
         return Response(serializer.data)

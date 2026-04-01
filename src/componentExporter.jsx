@@ -104,6 +104,8 @@ import SliderList from './components/Admin/WebsiteAdminPages/SliderList';
 import SliderForm from './components/Admin/WebsiteAdminPages/SliderForm';
 import LabPhotos from './components/PublicPages/HomeComponents/LabPhotos';
 import Registration from './components/PublicPages/HomeComponents/Registration';
+import PasswordReset from './components/PublicPages/HomeComponents/PasswordReset.jsx';
+import ChangePassword from './components/Admin/Settings/ChangePassword.jsx';
 
 
 // --- SweetAlert Toast ---
@@ -152,6 +154,6 @@ export {
     //Website Admin Pages
     WebsiteSetting, CategoryList, CategoryForm, NoticeForm, NoticeList, AllNoticeList,
     ContactPage, CollegeProfile, EmployeePublicView, ImportantLinkForm, ImportantLinkList,
-    AdmissionQueryForm, SliderForm, SliderList, LabPhotos, Registration
+    AdmissionQueryForm, SliderForm, SliderList, LabPhotos, Registration, PasswordReset, ChangePassword
 
 };

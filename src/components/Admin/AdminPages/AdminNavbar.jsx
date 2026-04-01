@@ -152,7 +152,19 @@ const displayName = () => {
         <i className="bi bi-person me-2"></i> My Profile
       </Link>
     </li>
-    
+    <li className="px-2">
+  <Link 
+    className="dropdown-item py-2 d-flex align-items-center rounded-2" 
+    to="/change-password"
+    style={{ transition: 'all 0.3s' }}
+  >
+    <i className="bi bi-shield-lock text-warning"></i>
+    <span style={{ color: "#344767", fontWeight: "500", fontSize: "14.5px" }}>
+      Change Password
+    </span>
+  </Link>
+</li>
+   
     <li><hr className="dropdown-divider" /></li>
     
     <li>

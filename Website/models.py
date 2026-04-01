@@ -187,15 +187,20 @@ class HomeSlider(models.Model):
     def __str__(self):
         return self.title
     
-
 class OTPStorage(models.Model):
-    mobile = models.CharField(max_length=15, unique=True)
+    # unique=True সরিয়ে দেওয়া হয়েছে যাতে একই ইউজার বারবার ওটিপি পেতে পারেন
+    mobile = models.CharField(max_length=15, null=True, blank=True) 
+    email = models.EmailField(null=True, blank=True) # ইমেইল ফিল্ড যোগ করা হয়েছে
     otp = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def is_valid(self):
         # ওটিপি ৫ মিনিটের জন্য বৈধ থাকবে
-        return self.created_at >= timezone.now() - datetime.timedelta(minutes=5)
+        # timezone.now() এবং self.created_at এর তুলনা নিশ্চিত করা হয়েছে
+        now = timezone.now()
+        return self.created_at >= now - datetime.timedelta(minutes=5)
 
     def __str__(self):
-        return f"OTP for {self.mobile} - {self.otp}"
+        target = self.email if self.email else self.mobile
+        # এখানে শুধু otp দিলে হবে না, self.otp দিতে হবে
+        return f"OTP for {target} - {self.otp}"

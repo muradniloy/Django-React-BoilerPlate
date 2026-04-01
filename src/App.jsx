@@ -28,8 +28,8 @@ const App = () => {
                 // যদি ইউজার আগে লগইন অবস্থায় ছিল কিন্তু এখন সেশন ফেইল করে
                 if (profile) {
                     CM.Swal.fire({
-                        title: 'সেশন শেষ!',
-                        text: 'নিরাপত্তার স্বার্থে আপনাকে আবার লগইন করতে হবে।',
+                        title: 'Session end!',
+                        text: 'Please login again',
                         icon: 'info',
                         timer: 2500,
                         showConfirmButton: false,
@@ -49,7 +49,7 @@ const App = () => {
     if (loading) return (
         <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '100vh', background: '#1a1a1a' }}>
             <div className="spinner-border text-primary" role="status" style={{ width: '3.5rem', height: '3.5rem' }}></div>
-            <p className="mt-3 fw-bold text-white">নিরাপদ সংযোগ যাচাই হচ্ছে...</p>
+            <p className="mt-3 fw-bold text-white">secure connection building...</p>
         </div>
     );
 
@@ -70,6 +70,7 @@ const App = () => {
                         <CM.Route path="/admission-query" element={<CM.AdmissionQueryForm />} />
                         <CM.Route path="/lab-photos" element={<CM.LabPhotos />} />
                         <CM.Route path="/register" element={<CM.Registration />} />
+                        <CM.Route path="/reset-password" element={<CM.PasswordReset />} />
                     </CM.Route>
 
                     {/* ভুল URL হিট করলে হোম পেজ */}
@@ -84,6 +85,7 @@ const App = () => {
                         <CM.Route path="/dashboard" element={<CM.AdminDashboard />} />
                         <CM.Route path="/profile" element={<CM.ProfilePage />} />
                         <CM.Route path="/EditProfileForm" element={<CM.EditProfileForm />} />
+                        <CM.Route path="/change-password" element={<CM.ChangePassword />} />
 
                         {/* 👁️ স্টুডেন্ট লিস্ট দেখার অনুমতি */}
                         <CM.Route element={<CM.AdminProtectionWrapper allowedGroups={['StudentsView', 'Admin']} />}>

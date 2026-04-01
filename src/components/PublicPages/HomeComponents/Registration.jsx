@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { domain } from "../../../env";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import "../../../CSS/Registration.css";
 
 const Registration = () => {
     const navigate = useNavigate();
@@ -10,191 +11,266 @@ const Registration = () => {
     // States
     const [role, setRole] = useState(""); 
     const [uniqueId, setUniqueId] = useState("");
+    const [mobileInput, setMobileInput] = useState("");
     const [isIdVerified, setIsIdVerified] = useState(false);
-    const [otpMethod, setOtpMethod] = useState("email");
-    const [showOtpSection, setShowOtpSection] = useState(false);
-    const [otp, setOtp] = useState("");
-    const [isMobileVerified, setIsMobileVerified] = useState(false);
-    const [timer, setTimer] = useState(0);
+    const [isOtpVerified, setIsOtpVerified] = useState(false);
+    const [otpCode, setOtpCode] = useState("");
+    const [timer, setTimer] = useState(-1); 
 
+    const [profileDetails, setProfileDetails] = useState(null);
     const [formData, setFormData] = useState({
         username: "",
         email: "",
         password: "",
-        confirmPassword: "",
-        fullName: "",
-        mobile: ""
+        confirmPassword: ""
     });
 
-    // ১. ওটিপি টাইমার লজিক
+    // Timer Logic
     useEffect(() => {
         let interval;
         if (timer > 0) {
             interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+        } else if (timer === 0) {
+            clearInterval(interval);
         }
         return () => clearInterval(interval);
     }, [timer]);
 
-    // ২. আইডি ভেরিফিকেশন (onBlur)
-    const verifyProfileId = async () => {
-        if (!role || !uniqueId) return;
+    // মাস্কিং ফাংশন
+    const maskInfo = (str, type) => {
+        if (!str) return "N/A";
+        if (type === "email") {
+            const [name, domainPart] = str.split("@");
+            return `${name.substring(0, 2)}***@${domainPart}`;
+        }
+        return `${str.substring(0, 3)}XXXXX${str.substring(str.length - 3)}`;
+    };
+
+    // ধাপ ১: প্রোফাইল ভেরিফিকেশন
+    const handleVerifyIdentity = async () => {
+        if (!role || !uniqueId || !mobileInput) {
+            return Swal.fire("Required", "Please fill all identification fields!", "warning");
+        }
         try {
             const res = await axios.post(`${domain}/api/verify-id/`, {
-                role: role,
-                unique_id: uniqueId
+                role, unique_id: uniqueId, mobile: mobileInput
             });
-            setFormData({
-                ...formData,
-                fullName: res.data.name,
-                email: res.data.email || "",
-                mobile: res.data.mobile || ""
-            });
-            setIsIdVerified(true);
-            Swal.fire("Verified!", `Welcome ${res.data.name}. Now verify your account.`, "success");
-        } catch (err) {
-            setIsIdVerified(false);
-            Swal.fire("Error", err.response?.data?.error || "ID not found!", "error");
-        }
-    };
 
-    // ৩. ওটিপি পাঠানোর লজিক
-    const sendOTP = async () => {
-        if (timer > 0) return;
-        try {
-            const res = await axios.post(`${domain}/api/send-otp/`, {
-                mobile: formData.mobile,
-                email: formData.email,
-                method: otpMethod
-            });
-            if (res.data.success) {
-                setShowOtpSection(true);
-                setTimer(60); // ১ মিনিটের লক
-                Swal.fire("Success", `OTP sent via ${otpMethod.toUpperCase()}`, "success");
+            if (res.data.is_registered) {
+                Swal.fire("Already Registered!", `Account exists for ${res.data.name}.`, "warning");
+            } else {
+                setIsIdVerified(true);
+                setProfileDetails(res.data);
+                
+                const fetchedEmail = res.data.email || "";
+                setFormData(prev => ({ ...prev, email: fetchedEmail }));
+                
+                Swal.fire({
+                    title: "Verify Your Identity",
+                    html: `
+                        <div style="text-align: left; font-size: 14px; line-height: 1.6;">
+                            <p>Select where to send the OTP for <b>${res.data.name}</b>:</p>
+                            <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px;">
+                                <b>Email:</b> ${maskInfo(fetchedEmail, "email")}<br/>
+                                <b>Mobile:</b> ${maskInfo(mobileInput, "phone")}
+                            </div>
+                        </div>
+                    `,
+                    icon: "info",
+                    showCancelButton: true,
+                    confirmButtonText: "Send to Email",
+                    cancelButtonText: "Send to SMS",
+                    confirmButtonColor: "#0d6efd",
+                    cancelButtonColor: "#198754",
+                    reverseButtons: true,
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        handleSendOtp("email", fetchedEmail);
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        handleSendOtp("sms", mobileInput);
+                    }
+                });
             }
         } catch (err) {
-            Swal.fire("Error", "Failed to send OTP. Check balance/settings.", "error");
+            Swal.fire("Error", err.response?.data?.error || "No record found!", "error");
         }
     };
 
-    // ৪. ওটিপি ভেরিফাই করার লজিক
-    const handleVerifyOtp = async () => {
+    // ধাপ ২: ওটিপি পাঠানো
+    const handleSendOtp = async (method, contactInfo) => {
+        setTimer(120); 
         try {
-            const res = await axios.post(`${domain}/api/verify-otp/`, {
-                mobile: formData.mobile,
-                otp: otp
+            await axios.post(`${domain}/api/send-otp/`, {
+                method, role, unique_id: uniqueId, mobile: mobileInput, email: contactInfo 
             });
-            if (res.data.success) {
-                setIsMobileVerified(true);
-                setShowOtpSection(false);
-                Swal.fire("Verified!", "Communication verified successfully.", "success");
+            Swal.fire({
+                title: "Sent!",
+                text: `OTP sent via ${method}. Check terminal/inbox!`,
+                icon: "success",
+                timer: 3000,
+                showConfirmButton: false
+            });
+        } catch (err) {
+            setTimer(0);
+            Swal.fire("Failed", "OTP sending failed.", "error");
+        }
+    };
+
+    // ধাপ ৩: ওটিপি ভেরিফাই করা
+    const handleVerifyOtpCode = async () => {
+        if (!otpCode) return Swal.fire("Required", "Please enter OTP code", "warning");
+        try {
+            const res = await axios.post(`${domain}/api/verify-otp/`, { 
+                otp: otpCode, mobile: mobileInput, email: formData.email
+            });
+            if (res.status === 200) {
+                setIsOtpVerified(true);
+                setTimer(-1); 
+                Swal.fire("Verified!", "OTP matched successfully.", "success");
             }
         } catch (err) {
-            Swal.fire("Error", "Invalid or Expired OTP!", "error");
+            Swal.fire("Error", "Invalid OTP code!", "error");
         }
     };
 
-    // ৫. ফাইনাল রেজিস্ট্রেশন সাবমিট
-    const handleRegister = async (e) => {
+    // ধাপ ৪: ফাইনাল রেজিস্ট্রেশন
+    const handleFinalRegister = async (e) => {
         e.preventDefault();
-        if (!isMobileVerified) return Swal.fire("Wait", "Please verify OTP first!", "warning");
-        if (formData.password !== formData.confirmPassword) return Swal.fire("Error", "Passwords mismatch!", "error");
-
+        if (formData.password !== formData.confirmPassword) {
+            return Swal.fire("Error", "Passwords mismatch!", "error");
+        }
         try {
             await axios.post(`${domain}/api/register/`, {
-                username: formData.username,
-                email: formData.email,
-                password: formData.password,
-                role: role,
-                unique_id: uniqueId
+                ...formData, role, unique_id: uniqueId, mobile: mobileInput, otp: otpCode
             });
-            Swal.fire("Done!", "Account Created Successfully", "success");
+            Swal.fire("Success!", "Registration complete.", "success");
             navigate("/login");
         } catch (err) {
-            Swal.fire("Error", "Registration failed!", "error");
+            Swal.fire("Error", err.response?.data?.error || "Registration failed!", "error");
         }
     };
 
     return (
-        <div className="container py-5">
-            <div className="row justify-content-center">
-                <div className="col-md-7 col-lg-5 shadow-lg p-4 rounded-4 bg-white border-top border-5 border-success">
-                    <h2 className="text-center fw-bold mb-4 text-success">User Registration</h2>
-                    
-                    <form onSubmit={handleRegister}>
-                        {/* Role & ID Selection */}
-                        <div className="mb-3">
-                            <label className="form-label small fw-bold">User registration as..</label>
-                            <select className="form-select border-2" onChange={(e) => {setRole(e.target.value); setIsIdVerified(false);}} required>
+        <div className="reg-container">
+            <div className="registration-card animate-fade shadow-lg">
+                <div className="text-center mb-4">
+                    <h2 className="text-gradient fw-bold">Portal Registration</h2>
+                    <p className="text-muted small">Verify identity to create your account</p>
+                </div>
+                
+                <form onSubmit={handleFinalRegister}>
+                    <div className="row g-3 align-items-end mb-4 p-3 bg-white rounded border">
+                        <div className="col-lg-3 col-md-6">
+                            <label className="label-custom">Register As</label>
+                            <select className="form-select custom-input" 
+                                onChange={(e) => {setRole(e.target.value); setIsIdVerified(false);}} 
+                                required disabled={isIdVerified} value={role}>
                                 <option value="">Select Role</option>
                                 <option value="student">Student</option>
                                 <option value="employee">Employee</option>
                             </select>
                         </div>
+                        <div className="col-lg-3 col-md-6">
+                            <label className="label-custom">{role === "employee" ? "Employee ID" : "Student ID"}</label>
+                            <input type="text" className="form-control custom-input" 
+                                placeholder={role === "employee" ? "Enter Employee ID" : role === "student" ? "Enter Student ID" : "Enter ID"} 
+                                onChange={(e) => {setUniqueId(e.target.value); setIsIdVerified(false);}} 
+                                disabled={isIdVerified} />
+                        </div>
+                        <div className="col-lg-3 col-md-6">
+                            <label className="label-custom">Mobile Number</label>
+                            <input type="text" className="form-control custom-input" 
+                                placeholder="017XXXXXXXX" 
+                                onChange={(e) => {setMobileInput(e.target.value); setIsIdVerified(false);}} 
+                                disabled={isIdVerified} />
+                        </div>
+                        <div className="col-lg-3 col-md-6">
+                            <button type="button" className={`btn w-100 py-3 rounded-pill fw-bold ${isIdVerified ? 'btn-success' : 'btn-dark'}`} onClick={handleVerifyIdentity} disabled={isIdVerified}>
+                                {isIdVerified ? "Verified ✓" : "Verify Profile"}
+                            </button>
+                        </div>
+                    </div>
 
-                        {role && (
-                            <div className="mb-4">
-                                <label className="form-label small fw-bold">{role.toUpperCase()} ID</label>
-                                <input 
-                                    type="text" className={`form-control border-2 ${isIdVerified ? 'is-valid' : ''}`}
-                                    placeholder={`Enter your ${role} ID`}
-                                    onBlur={verifyProfileId}
-                                    onChange={(e) => setUniqueId(e.target.value)}
-                                    required 
-                                />
-                            </div>
-                        )}
-
-                        {isIdVerified && (
-                            <div className="animate__animated animate__fadeIn">
-                                <div className="p-3 mb-4 bg-light rounded-3 border">
-                                    <p className="mb-1 small text-muted">Registering for:</p>
-                                    <h5 className="fw-bold text-dark">{formData.fullName}</h5>
-                                    <p className="mb-0 small">{formData.email} | {formData.mobile}</p>
+                    {isIdVerified && profileDetails && (
+                        <div className="animate-slide-up">
+                            {/* Profile Details Card - Fixed Photo and Program Logic */}
+                            <div className="profile-display-card mb-4 p-3 d-flex align-items-center border rounded bg-light shadow-sm">
+                                <div className="profile-img-wrapper me-3">
+                                    <img 
+                                        src={profileDetails.photo ? `${domain}${profileDetails.photo}` : "https://via.placeholder.com/100"} 
+                                        alt="User" 
+                                        className="rounded-circle border border-3 border-success shadow-sm"
+                                        style={{ width: '85px', height: '85px', objectFit: 'cover' }}
+                                        onError={(e) => { e.target.src = "https://via.placeholder.com/100"; }}
+                                    />
                                 </div>
-
-                                {/* OTP Section */}
-                                {!isMobileVerified && (
-                                    <div className="card border-info mb-4">
-                                        <div className="card-body">
-                                            <label className="form-label small fw-bold">Verify Identity via:</label>
-                                            <div className="d-flex gap-3 mb-3">
-                                                <label><input type="radio" name="m" checked={otpMethod==='email'} onChange={()=>setOtpMethod('email')} /> Email</label>
-                                                <label><input type="radio" name="m" checked={otpMethod==='sms'} onChange={()=>setOtpMethod('sms')} /> SMS</label>
-                                            </div>
-
-                                            {!showOtpSection ? (
-                                                <button type="button" className="btn btn-outline-info w-100 btn-sm" disabled={timer > 0} onClick={sendOTP}>
-                                                    {timer > 0 ? `Resend in ${timer}s` : `Send OTP to ${otpMethod.toUpperCase()}`}
-                                                </button>
+                                <div className="profile-info flex-grow-1">
+                                    <h5 className="fw-bold text-dark mb-1">{profileDetails.name}</h5>
+                                    <div className="row small text-muted">
+                                        <div className="col-md-6">
+                                            <b>ID:</b> {uniqueId} <br/>
+                                            {role === "employee" ? (
+                                                <><b>Designation:</b> {profileDetails.designation || "N/A"}</>
                                             ) : (
-                                                <div className="input-group">
-                                                    <input type="text" className="form-control" placeholder="6-digit OTP" onChange={(e)=>setOtp(e.target.value)} />
-                                                    <button type="button" className="btn btn-success" onClick={handleVerifyOtp}>Verify</button>
-                                                </div>
+                                                <><b>Program:</b> {profileDetails.program || "N/A"}</>
+                                            )}
+                                        </div>
+                                        <div className="col-md-6">
+                                            {role === "student" ? (
+                                                <>
+                                                    <b>Session:</b> {profileDetails.session || "N/A"} <br/>
+                                                    <b>Reg No:</b> {profileDetails.reg_no || uniqueId}
+                                                </>
+                                            ) : (
+                                                <><b>Joining:</b> {profileDetails.joining_date || "N/A"}</>
                                             )}
                                         </div>
                                     </div>
-                                )}
-
-                                {/* User Details */}
-                                <div className="mb-3">
-                                    <input type="text" className="form-control" placeholder="Choose Username" required onChange={(e)=>setFormData({...formData, username: e.target.value})} />
                                 </div>
-                                <div className="row">
-                                    <div className="col-6 mb-3">
-                                        <input type="password" name="password" className="form-control" placeholder="Password" required onChange={(e)=>setFormData({...formData, [e.target.name]: e.target.value})} />
-                                    </div>
-                                    <div className="col-6 mb-3">
-                                        <input type="password" name="confirmPassword" className="form-control" placeholder="Confirm" required onChange={(e)=>setFormData({...formData, [e.target.name]: e.target.value})} />
-                                    </div>
-                                </div>
-
-                                <button type="submit" className="btn btn-success w-100 fw-bold rounded-pill py-2 shadow" disabled={!isMobileVerified}>
-                                    Complete Registration
-                                </button>
                             </div>
-                        )}
-                    </form>
+
+                            <div className="row g-3 mb-4">
+                                <div className="col-md-6">
+                                    <label className="label-custom">
+                                        Verification OTP {timer > 0 && <span className="text-danger ms-2 fw-bold">({Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')})</span>}
+                                    </label>
+                                    <div className="input-group">
+                                        <input type="text" className="form-control custom-input" placeholder="Enter Code" onChange={(e)=>setOtpCode(e.target.value)} disabled={isOtpVerified} />
+                                        {timer === 0 && !isOtpVerified ? (
+                                            <button type="button" className="btn btn-warning fw-bold" onClick={handleVerifyIdentity}>Resend</button>
+                                        ) : (
+                                            <button type="button" className={`btn fw-bold ${isOtpVerified ? 'btn-success' : 'btn-primary'}`} onClick={handleVerifyOtpCode} disabled={isOtpVerified}>
+                                                {isOtpVerified ? "Matched ✓" : "Verify OTP"}
+                                            </button>
+                                        )}
+                                    </div>
+                                    {timer === 0 && !isOtpVerified && <small className="text-danger mt-1 d-block fw-bold">OTP expired. Please click Resend.</small>}
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="label-custom">Set Username</label>
+                                    <input type="text" className="form-control custom-input" required disabled={!isOtpVerified} onChange={(e)=>setFormData({...formData, username: e.target.value})} />
+                                </div>
+                                <div className="col-md-6">
+                                    <label className="label-custom">Set Password</label>
+                                    <input type="password" className="form-control custom-input" required disabled={!isOtpVerified} onChange={(e)=>setFormData({...formData, password: e.target.value})} />
+                                </div>
+                                <div className="col-md-6">
+                                    <label className="label-custom">Confirm Password</label>
+                                    <input type="password" className="form-control custom-input" required disabled={!isOtpVerified} onChange={(e)=>setFormData({...formData, confirmPassword: e.target.value})} />
+                                </div>
+                            </div>
+
+                            <button type="submit" className="btn btn-gradient w-100 py-3 shadow-lg fw-bold" disabled={!isOtpVerified}>
+                                Complete Registration
+                            </button>
+                        </div>
+                    )}
+                </form>
+
+                <div className="text-center mt-4">
+                    <p className="small text-muted mb-0">Already have an account? <Link to="/login" className="text-success fw-bold text-decoration-none">Login Here</Link></p>
                 </div>
             </div>
         </div>

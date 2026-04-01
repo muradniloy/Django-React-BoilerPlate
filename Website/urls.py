@@ -25,5 +25,10 @@ urlpatterns = [
     
     # ফাইনাল রেজিস্ট্রেশন সাবমিট
     path('register/', RegisterView.as_view(), name='register'),
+    path('password-reset-check/', PasswordResetCheckView.as_view(), name='reset_check'),
+    path('complete-password-reset/', CompletePasswordResetView.as_view(), name='complete_reset'),
+    path('send-reset-otp/', SendPasswordResetOTPView.as_view(), name='send_reset_otp'),
+    path('verify-reset-otp/', VerifyResetOTPView.as_view(), name='verify_reset_otp'),
+# OTP er jonno tomar purono send-otp api tai use koro, shudhu reset page theke call korbe.
     path('', include(router.urls)),
 ]

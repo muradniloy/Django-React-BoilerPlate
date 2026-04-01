@@ -29,6 +29,7 @@ urlpatterns = [
     path('institution/', InstitutionDetailView.as_view(), name='institution-detail'),
     path('token/refresh/', MyTokenRefreshView.as_view(), name='token_refresh'),
     path('signup/', SignUpView.as_view(), name='signup'),
+    path('change-password/', ChangePasswordView.as_view(), name='change_password'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('user/me/', UserInfoView.as_view(), name='user_me'),
     path('profile/', ProfileAPIView.as_view(), name='profile-get'),

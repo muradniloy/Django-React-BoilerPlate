@@ -6,6 +6,7 @@ import { domain } from '../../../env'
 const ProfilePage = () => {
   const [{ profile }] = useGlobalState()
   console.log(profile, 'from profile page')
+  
 
   return (
     <div className="container my-5">
@@ -21,11 +22,40 @@ const ProfilePage = () => {
               </div>
 
               <h4 className="mb-0">{profile?.prouser.first_name || 'First Name'} {profile?.prouser.last_name || 'Last Name'}</h4>
-              <p className="text-muted">{profile?.designation || 'Web Developer'}</p>
+              <div className="profile-status-section mt-3">
+  {/* ১. স্টুডেন্ট হলে সিম্পল এবং ক্লিন ডিজাইন */}
+  {profile?.groups?.includes('Fresh_Student') ? (
+    <div className="d-inline-flex align-items-center bg-light border px-3 py-2 rounded-pill shadow-sm">
+      <span className="text-success me-2">●</span>
+      <span className="fw-bold text-dark">Student</span>
+    </div>
+  ) : (
+    /* ২. এমপ্লয়ি হলে প্রফেশনাল ডেজিগনেশন এবং ডিপার্টমেন্ট কার্ড */
+    <div className="employee-info-box">
+      {/* ডেজিগনেশন ব্যাজ */}
+      <div className="d-inline-block bg-opacity-10 px-3 py-1 rounded-3 mb-2">
+        <span className="text-primary fw-bold text-uppercase small" style={{ letterSpacing: '1px' }}>
+          <i className="bi bi-briefcase-fill me-2"></i>
+          {profile?.emp_designation || profile?.designation || 'Staff'}
+        </span>
+      </div>
+
+      {/* ডিপার্টমেন্ট সেকশন */}
+      {profile?.emp_department && (
+        <div className="mt-1">
+          <span className="text-muted small d-flex align-items-center justify-content-center">
+            <i className="bi bi-building me-1"></i>
+            <span className="fw-medium">Department: {profile.emp_department} </span>
+          </span>
+        </div>
+      )}
+    </div>
+  )}
+</div>
 
                 <Link
                 to="/EditProfileForm"
-                className="btn btn-primary btn-sm px-3"
+                className="btn btn-primary btn-sm px-3 mt-2"
               >
                 ✏️ Edit Profile
               </Link>

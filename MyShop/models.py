@@ -543,14 +543,24 @@ class Institution(models.Model):
 
 class Department(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    order = models.IntegerField(default=0, help_text="Enter a number to sort categories (e.g., 1, 2, 3)")
     history = HistoricalRecords()
+
+    class Meta:
+        # এটি করলে ডাটাবেজ থেকে ডাটা অটোমেটিক order অনুযায়ী সেজে আসবে
+        ordering = ['order']
 
     def __str__(self):
         return self.name
+    
 
 class Designation(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    order = models.IntegerField(default=0, help_text="Enter a number to sort categories (e.g., 1, 2, 3)")
     history = HistoricalRecords()
+    class Meta:
+        # এটি করলে ডাটাবেজ থেকে ডাটা অটোমেটিক order অনুযায়ী সেজে আসবে
+        ordering = ['order']
 
     def __str__(self):
         return self.name

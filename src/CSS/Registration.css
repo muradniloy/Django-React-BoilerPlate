@@ -1,0 +1,144 @@
+/* Registration.css - Margin Optimized Version */
+
+.reg-container {
+    background-color: #f0f2f5;
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: flex-start; /* 'center' থেকে 'flex-start' করা হলো যাতে উপরে লেগে থাকে */
+    justify-content: center;
+    padding: 30px 20px; /* উপরের প্যাডিং ৬০ থেকে কমিয়ে ৩০ করা হলো */
+    margin: 0;
+}
+
+.registration-card {
+    background: #ffffff;
+    border-radius: 35px;
+    width: 75%; 
+    max-width: 1150px;
+    padding: 40px 60px !important; /* উপরের প্যাডিং ৬০ থেকে কমিয়ে ৪০ করা হলো */
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.04);
+    border: 1px solid #eaedf0;
+    margin-top: 20px; /* সামান্য গ্যাপ রাখার জন্য */
+    animation: fadeIn 0.8s ease-in-out;
+}
+
+/* টাইটেলের মার্জিনও কিছুটা কমিয়ে দিচ্ছি */
+.registration-card .text-center.mb-5 {
+    margin-bottom: 30px !important; /* ৫০ থেকে কমিয়ে ৩০ করা হলো */
+}
+/* ৩. হেডার টেক্সট গ্রাডিয়েন্ট */
+.text-gradient {
+    background: linear-gradient(90deg, #198754, #20c997);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 2.2rem;
+    font-weight: 800;
+}
+
+/* ৪. ডাইনামিক লেবেল ডিজাইন */
+.label-custom {
+    font-size: 11px;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: block;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+/* ৫. মডার্ন ইনপুট ফিল্ড */
+.custom-input {
+    border: 2px solid #f1f5f9 !important;
+    background: #f8fafc !important;
+    padding: 14px 20px !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+    color: #334155 !important;
+    transition: all 0.25s ease !important;
+}
+
+.custom-input:focus {
+    border-color: #198754 !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(25, 135, 84, 0.08) !important;
+    outline: none;
+}
+
+/* ৬. ডাটা আসার পর ভেরিফিকেশন বক্স */
+.verification-box {
+    background: #f0fdf4;
+    border: 2px dashed #198754;
+    padding: 30px;
+    border-radius: 20px;
+    margin-top: 20px;
+    text-align: center;
+}
+
+/* ৭. বাটন ডিজাইন */
+.btn-dark {
+    background-color: #1e293b !important;
+    border: none !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-dark:hover {
+    background-color: #0f172a !important;
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background-color: #198754 !important;
+    border: none !important;
+    cursor: default;
+}
+
+.btn-gradient {
+    background: linear-gradient(135deg, #198754, #20c997);
+    color: white !important;
+    border: none;
+    border-radius: 15px;
+    padding: 18px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    box-shadow: 0 10px 25px rgba(25, 135, 84, 0.15);
+    transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px rgba(25, 135, 84, 0.25);
+}
+
+/* ৮. রেসপন্সিভনেস */
+@media (max-width: 1200px) {
+    .registration-card {
+        width: 85%;
+    }
+}
+
+@media (max-width: 992px) {
+    .registration-card {
+        width: 95%;
+        padding: 40px !important;
+    }
+    .text-gradient {
+        font-size: 1.8rem;
+    }
+}
+
+/* ৯. এনিমেশন */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}

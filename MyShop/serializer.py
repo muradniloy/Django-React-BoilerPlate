@@ -41,23 +41,45 @@ class ProfileSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop('prouser', None)
         return super().update(instance, validated_data)
-
     def to_representation(self, instance):
-        # পুরোনো ডাটা নিয়ে আসা
+    # ১. প্রথমে প্রোফাইলের বেসিক ডাটা নিয়ে আসি
         response = super().to_representation(instance)
+        user = instance.prouser
         
-        if instance.prouser:
-            # ১. ইউজারের বেসিক ডাটা (Username, Email ইত্যাদি)
-            user_data = UserSerializer(instance.prouser).data
+        if user:
+            # ২. ইউজারের ডাটা এবং ৩. গ্রুপ ডাটা (আপনার কোড অনুযায়ী)
             
-            # ২. গ্রুপ ডাটা সরাসরি লেভেলে নিয়ে আসা (React এর সুবিধার জন্য)
-            # এটি নিশ্চিত করবে যে রিঅ্যাক্টে currentUser.groups কাজ করবে
-            groups = [group.name for group in instance.prouser.groups.all()]
+            response['prouser'] = UserSerializer(user).data
+            response['groups'] = [g.name for g in user.groups.all()]
             
-            # ৩. রেসপন্স আপডেট করা
-            response['groups'] = groups
-            response['prouser'] = user_data
-            
+            # ৪. ছবির ফলব্যাক (আপনার কোড অনুযায়ী)
+            if not instance.image:
+                student = getattr(user, 'student_profile', None) or getattr(user, 'studentpersonal', None)
+                if student and student.photo:
+                    response['image'] = student.photo.url
+                
+                employee = getattr(user, 'employee_profile', None) or getattr(user, 'employeeprofile', None)
+                if employee and employee.photo:
+                    response['image'] = employee.photo.url
+
+            # --- নতুন অংশ: এমপ্লয়ি ডেজিগনেশন ও ডিপার্টমেন্ট (এখানে যোগ করুন) ---
+            employee = getattr(user, 'employee_profile', None) or getattr(user, 'employeeprofile', None)
+            if employee:
+                # ForeignKey থেকে নামগুলো টেনে আনা (মডেলে ফিল্ডের নাম 'name' হলে)
+                response['emp_department'] = employee.department.name if employee.department else ""
+                response['emp_designation'] = employee.designation.name if employee.designation else ""
+                
+                # যদি প্রোফাইল মডেলে designation খালি থাকে, তবে অফিসিয়ালটা বসিয়ে দাও
+                if not response.get('designation'):
+                    response['designation'] = response['emp_designation']
+
+            # ৫. ফোন নম্বর (আপনার কোড অনুযায়ী)
+            if not instance.phone:
+                source = getattr(user, 'student_profile', None) or getattr(user, 'studentpersonal', None) or \
+                        getattr(user, 'employee_profile', None) or getattr(user, 'employeeprofile', None)
+                if source:
+                    response['phone'] = getattr(source, 'mobile', "") or getattr(source, 'phone', "")
+
         return response
 
 class CategorisSerializer(serializers.ModelSerializer):
